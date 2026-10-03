@@ -691,6 +691,7 @@ label,
 }
 
 .range-inputs label {
+  min-width: 0;
   gap: 5px;
 }
 
@@ -702,6 +703,9 @@ label,
 }
 
 .range-inputs input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   min-height: 40px;
   padding: 8px 9px;
   border-radius: 8px;
@@ -2655,14 +2659,37 @@ tbody tr:last-child td {
   }
 
   .range-inputs {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     padding: 7px;
+    overflow: hidden;
+  }
+
+  .range-inputs.single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .range-inputs label {
+    min-width: 0;
+    overflow: hidden;
   }
 
   .range-inputs input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
     min-height: 40px;
-    padding: 8px 7px;
-    font-size: 0.82rem;
+    padding: 8px 5px;
+    font-size: 0.74rem;
+    text-align: center;
+  }
+
+  .range-inputs input[type="date"] {
+    font-size: 0.72rem;
   }
 
   input,
