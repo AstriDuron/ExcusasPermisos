@@ -389,6 +389,10 @@ begin
     raise exception 'Perfil no encontrado.';
   end if;
 
+  if target_role = 'admin' and (target_profile.active = false or target_profile.email_confirmed_at is null) then
+    raise exception 'El usuario debe confirmar correo y tener acceso activo antes de recibir rol administrador.';
+  end if;
+
   update public.profiles
   set role = target_role
   where id = target_profile_id;

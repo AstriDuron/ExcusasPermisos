@@ -827,13 +827,22 @@ function App() {
         return { ok: false, message };
       }
 
+      if (updates.role === 'admin' && (!targetPerson?.active || !targetPerson?.email_confirmed_at)) {
+        const message = 'Primero debe confirmar correo y tener acceso activo antes de darle rol de administrador.';
+        setNotice(message);
+        return { ok: false, message };
+      }
+
       const { error } = await supabase.rpc('set_profile_role', {
         target_profile_id: personId,
         target_role: updates.role
       });
 
       if (error) {
-        const message = error.message?.toLowerCase().includes('function')
+        const normalizedMessage = error.message?.toLowerCase() ?? '';
+        const message = normalizedMessage.includes('confirm') || normalizedMessage.includes('activo') || normalizedMessage.includes('correo')
+          ? 'Primero debe confirmar correo y tener acceso activo antes de darle rol de administrador.'
+          : normalizedMessage.includes('function')
           ? 'Falta ejecutar la migración de roles de administrador en Supabase.'
           : 'No se pudo actualizar el rol. Verifica que tu usuario administrador esté activo.';
         setNotice(message);
@@ -842,7 +851,7 @@ function App() {
 
       setNoticeTone('success');
       const message = updates.role === 'admin'
-        ? 'Rol actualizado a administrador. Si el estado sigue en Solicitado, todavía falta confirmar correo y aprobar acceso.'
+        ? 'Rol actualizado a administrador.'
         : 'Rol cambiado a personal.';
       setNotice(message);
       await loadRemoteData({ preserveNotice: true });
@@ -2377,11 +2386,21 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson, onResendConfi
                       <select
                         value={person.role}
                         onChange={(event) => handlePersonUpdate(person, { role: event.target.value })}
-                        disabled={person.id === currentUserId}
+                        disabled={person.id === currentUserId || (!person.active && person.role !== 'admin') || (!person.email_confirmed_at && person.role !== 'admin')}
+                        title={
+                          person.id === currentUserId
+                            ? 'No puede cambiar su propio rol'
+                            : !person.active || !person.email_confirmed_at
+                              ? 'Primero confirme el correo y apruebe el acceso'
+                              : 'Cambiar rol'
+                        }
                       >
                         <option value="personal">Personal</option>
                         <option value="admin">Administrador</option>
                       </select>
+                      {(!person.active || !person.email_confirmed_at) && person.role !== 'admin' && (
+                        <small className="field-hint">Primero aprobar acceso</small>
+                      )}
                     </td>
                     <td data-label="Área">
                       <input

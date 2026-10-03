@@ -1031,6 +1031,14 @@ textarea {
   padding: 0 10px;
 }
 
+.field-hint {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 .people-table td:last-child,
 .people-table th:last-child {
   text-align: right;
