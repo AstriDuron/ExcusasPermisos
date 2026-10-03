@@ -163,6 +163,11 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+function getEmailDisplayName(person) {
+  const emailName = person?.email?.split('@')[0]?.trim();
+  return emailName || person?.full_name || 'Personal';
+}
+
 function getCurrentMonth() {
   return new Date().toISOString().slice(0, 7);
 }
@@ -272,7 +277,7 @@ function buildProfileHistory(person) {
       id: `${person.id}-registered`,
       action: 'registered',
       title: 'Registro solicitado',
-      actorName: person.full_name,
+      actorName: getEmailDisplayName(person),
       createdAt: person.created_at
     });
   }
@@ -704,35 +709,33 @@ function App() {
       return false;
     }
 
-    const person = people.find((item) => item.id === personId);
-    const { data: updatedPerson, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', personId)
-      .select('id, active')
-      .single();
-
-    if (error || !updatedPerson) {
-      setNotice('No se pudo actualizar el acceso del usuario. Revisa las políticas RLS.');
-      return false;
-    }
-
     if (Object.prototype.hasOwnProperty.call(updates, 'active')) {
-      const { error: eventError } = await supabase.from('profile_events').insert({
-        profile_id: personId,
-        actor_id: activeUser.id,
-        actor_name: activeUser.name,
-        action: updates.active ? 'access_approved' : 'access_deactivated',
-        title: updates.active ? 'Acceso aprobado' : 'Acceso inactivado',
-        from_status: person?.active ? 'Activo' : 'Solicitado',
-        to_status: updates.active ? 'Activo' : 'Inactivo',
-        comment: comment.trim()
+      const { error } = await supabase.rpc('set_profile_access', {
+        target_profile_id: personId,
+        target_active: updates.active,
+        review_comment: comment.trim()
       });
 
-      if (eventError) {
-        setNotice('El acceso se actualizó, pero no se pudo guardar el histórico.');
-      } else {
-        setNotice(updates.active ? 'Acceso aprobado correctamente.' : 'Acceso inactivado correctamente.');
+      if (error) {
+        const message = error.message?.toLowerCase().includes('function')
+          ? 'Falta ejecutar la migración de aprobación de accesos en Supabase.'
+          : 'No se pudo actualizar el acceso del usuario. Verifica que tu usuario administrador esté activo.';
+        setNotice(message);
+        return false;
+      }
+
+      setNotice(updates.active ? 'Acceso aprobado correctamente.' : 'Acceso inactivado correctamente.');
+    } else {
+      const { data: updatedPerson, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', personId)
+        .select('id')
+        .single();
+
+      if (error || !updatedPerson) {
+        setNotice('No se pudo actualizar el usuario. Verifica los permisos de administración.');
+        return false;
       }
     }
 
@@ -2060,9 +2063,9 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
                   <tr>
                     <td data-label="Personal">
                       <div className="report-person people-person">
-                        <span className={`mini-avatar ${person.active ? 'active' : ''}`}>{getInitials(person.full_name)}</span>
+                        <span className={`mini-avatar ${person.active ? 'active' : ''}`}>{getInitials(getEmailDisplayName(person))}</span>
                         <div>
-                          <strong>{person.full_name}</strong>
+                          <strong>{getEmailDisplayName(person)}</strong>
                           <span>{person.email || 'Correo pendiente de sincronizar'}</span>
                         </div>
                       </div>
@@ -2170,7 +2173,7 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) 
         <div className="drawer-header">
           <div>
             <span className="request-code">Personal</span>
-            <h3>{person.full_name}</h3>
+            <h3>{getEmailDisplayName(person)}</h3>
           </div>
           <button className="icon-action drawer-close-action" type="button" aria-label="Cerrar detalle" onClick={onClose}>
             <XCircle size={22} />
