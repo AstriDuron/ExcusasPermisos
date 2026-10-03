@@ -548,12 +548,17 @@ label span {
 }
 
 .metric {
+  position: relative;
   min-height: 62px;
   padding: 11px 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel);
   box-shadow: 0 12px 32px rgba(26, 30, 36, 0.07);
+}
+
+.metric-icon {
+  display: none;
 }
 
 .metric span,
@@ -2641,5 +2646,330 @@ tbody tr:last-child td {
 
   .attachment-preview iframe {
     height: 300px;
+  }
+}
+
+@media (max-width: 860px) {
+  .workspace {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    background: #f6f8fb;
+  }
+
+  .topbar {
+    margin-bottom: 12px;
+  }
+
+  .topbar h2 {
+    font-size: 1.08rem;
+    letter-spacing: 0;
+  }
+
+  .topbar-subtitle {
+    display: block !important;
+    margin-top: 2px;
+    color: #667085;
+    font-size: 0.72rem;
+    line-height: 1.25;
+  }
+
+  .panel {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .report-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px;
+    margin: 0 0 12px !important;
+  }
+
+  .report-summary .metric:nth-child(2) {
+    order: 3;
+  }
+
+  .report-summary .metric:nth-child(3) {
+    order: 2;
+  }
+
+  .report-summary .metric:nth-child(4) {
+    order: 4;
+  }
+
+  .metric {
+    display: grid;
+    align-content: start;
+    min-height: 84px;
+    padding: 10px 8px;
+    border-radius: 11px;
+    box-shadow: 0 8px 22px rgba(24, 27, 32, 0.06);
+  }
+
+  .metric-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    margin-bottom: 7px;
+    border-radius: 999px;
+    background: #edf2f7;
+    color: #475467;
+  }
+
+  .metric-success .metric-icon {
+    background: #c9f7df;
+    color: var(--green);
+  }
+
+  .metric-warning .metric-icon {
+    background: #ffe7a8;
+    color: #9a6200;
+  }
+
+  .metric-danger .metric-icon {
+    background: #ffd5d1;
+    color: var(--red);
+  }
+
+  .metric span {
+    color: #526070;
+    font-size: 0.63rem;
+    line-height: 1.05;
+  }
+
+  .metric strong {
+    margin-top: 5px;
+    font-size: 1.1rem;
+  }
+
+  .report-filter-panel {
+    margin: 0 0 14px !important;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .report-filter-panel .list-tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 108px !important;
+    gap: 8px;
+  }
+
+  .search-box,
+  .filter-box {
+    min-height: 34px;
+    padding: 0 10px;
+    border-radius: 10px;
+    box-shadow: 0 5px 14px rgba(24, 27, 32, 0.04);
+  }
+
+  .search-box input,
+  .filter-box select {
+    font-size: 0.76rem;
+  }
+
+  .filter-box {
+    gap: 5px;
+  }
+
+  .filter-box select {
+    font-size: 0.72rem;
+  }
+
+  .requests-table-wrap,
+  .report-content .requests-table-wrap,
+  .table-wrap,
+  .report-content .table-wrap {
+    margin: 0 !important;
+  }
+
+  tbody {
+    gap: 14px;
+  }
+
+  .requests-table tr,
+  .people-table tr,
+  .report-table tr {
+    border-radius: 18px;
+    border-color: #e6ebf1;
+    box-shadow: 0 10px 24px rgba(24, 27, 32, 0.05);
+  }
+
+  .requests-table td,
+  .people-table td,
+  .report-table td {
+    padding: 8px 16px;
+    border-bottom: 0;
+  }
+
+  .requests-table td::before,
+  .people-table td::before,
+  .report-table td::before {
+    color: #667085;
+    font-size: 0.62rem;
+  }
+
+  .requests-table td:first-child,
+  .report-table td:first-child,
+  .people-table td:first-child {
+    padding-top: 20px;
+    background: #ffffff;
+  }
+
+  .requests-table td[data-label="Código"] {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: start;
+    padding-bottom: 4px;
+  }
+
+  .requests-table td[data-label="Código"]::before {
+    content: "Código";
+    display: block;
+    grid-column: 1 / -1;
+    margin-bottom: 2px;
+    color: #98a2b3;
+    letter-spacing: 0.04em;
+  }
+
+  .requests-table td[data-label="Código"] strong {
+    font-size: 1rem;
+  }
+
+  .requests-table td[data-label="Estado"] {
+    position: absolute;
+    right: 16px;
+    top: 18px;
+    display: block;
+    padding: 0;
+  }
+
+  .requests-table td[data-label="Estado"]::before {
+    display: none;
+  }
+
+  .requests-table tr {
+    position: relative;
+    padding-bottom: 14px;
+  }
+
+  .requests-table td[data-label="Solicitud"],
+  .requests-table td[data-label="Personal"],
+  .requests-table td[data-label="Periodo"],
+  .requests-table td[data-label="Comprobante"],
+  .report-table td,
+  .people-table td {
+    grid-template-columns: 92px minmax(0, 1fr) !important;
+  }
+
+  .requests-table td[data-label="Solicitud"] span,
+  .requests-table td[data-label="Personal"] span,
+  .requests-table td[data-label="Periodo"] span {
+    margin-top: 2px;
+    color: #667085;
+    font-size: 0.72rem;
+  }
+
+  .requests-table td[data-label="Solicitud"] strong,
+  .requests-table td[data-label="Personal"] strong,
+  .requests-table td[data-label="Periodo"] strong {
+    justify-self: end;
+    font-size: 0.8rem;
+    text-align: right;
+  }
+
+  .requests-table td[data-label="Solicitud"] span,
+  .requests-table td[data-label="Personal"] span,
+  .requests-table td[data-label="Periodo"] span,
+  .requests-table td[data-label="Comprobante"] > span {
+    justify-self: end;
+    text-align: right;
+  }
+
+  .status-pill {
+    min-height: 28px;
+    padding: 0 10px;
+    font-size: 0.7rem;
+  }
+
+  .attachment-link {
+    max-width: 160px;
+    padding: 6px 9px;
+    border: 1px solid #f1d27e;
+    border-radius: 999px;
+    background: var(--gold-soft);
+    color: #8a5600;
+    font-size: 0.68rem;
+  }
+
+  .requests-table td[data-label="Acciones"],
+  .people-table td[data-label="Acciones"] {
+    padding-top: 14px;
+  }
+
+  .table-action-group {
+    grid-template-columns: 1fr;
+  }
+
+  .table-action-group .icon-action {
+    display: none;
+  }
+
+  .table-action {
+    border: 1px solid #f1d27e;
+    border-radius: 13px;
+    background: var(--gold-soft);
+    color: #7a3f00;
+  }
+
+  .report-controls {
+    padding: 12px;
+    border: 1px solid #e6ebf1;
+    border-radius: 18px;
+    background: #ffffff;
+  }
+
+  .report-view-tabs {
+    margin: 0 0 12px !important;
+    border-radius: 13px;
+  }
+
+  .nav-list {
+    border-radius: 18px 18px 0 0;
+  }
+
+  .nav-list button {
+    min-height: 56px;
+  }
+}
+
+@media (max-width: 420px) {
+  .report-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 7px;
+  }
+
+  .metric {
+    min-height: 82px;
+    padding: 9px 6px;
+  }
+
+  .metric-icon {
+    width: 27px;
+    height: 27px;
+  }
+
+  .metric span {
+    font-size: 0.6rem;
+  }
+
+  .metric strong {
+    font-size: 1.03rem;
+  }
+
+  .report-filter-panel .list-tools {
+    grid-template-columns: minmax(0, 1fr) 104px !important;
   }
 }

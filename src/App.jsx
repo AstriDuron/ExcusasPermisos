@@ -1292,8 +1292,27 @@ function LoadingInline() {
 }
 
 function Metric({ label, value, tone }) {
+  const metricIcons = {
+    Total: ClipboardList,
+    Solicitudes: ClipboardList,
+    Personal: Users,
+    Activos: UserCheck,
+    Aprobadas: CheckCircle2,
+    Pendientes: Clock3,
+    Solicitados: Clock3,
+    Rechazadas: XCircle,
+    Administradores: UserCheck,
+    Excusas: FileCheck2,
+    Permisos: CalendarDays,
+    'Con comprobante': Paperclip
+  };
+  const MetricIcon = metricIcons[label] ?? ClipboardList;
+
   return (
     <div className={`metric metric-${tone}`}>
+      <i className="metric-icon" aria-hidden="true">
+        <MetricIcon size={15} />
+      </i>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
