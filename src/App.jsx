@@ -366,6 +366,7 @@ function App() {
   const [people, setPeople] = useState([]);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
+  const [authErrorNotice, setAuthErrorNotice] = useState('');
   const [notice, setNotice] = useState('');
   const [noticeTone, setNoticeTone] = useState('warning');
 
@@ -378,7 +379,7 @@ function App() {
       const { data } = await supabase.auth.getSession();
       if (!isMounted) return;
       setSession(data.session ?? null);
-      setIsLoading(false);
+      setIsLoading(Boolean(data.session));
     }
 
     initializeAuth();
@@ -388,10 +389,12 @@ function App() {
         setIsRecoveringPassword(true);
       }
       setSession(nextSession);
+      setIsLoading(Boolean(nextSession));
       if (!nextSession) {
         setProfile(null);
         setRequests([]);
         setPeople([]);
+        setIsLoading(false);
       }
     });
 
@@ -447,11 +450,15 @@ function App() {
     setProfile(profileRow);
 
     if (!profileRow.active) {
+      setAuthErrorNotice('Tu solicitud de acceso aún no ha sido aprobada por administración.');
       setRequests([]);
       setPeople([]);
+      await supabase.auth.signOut();
       setIsLoading(false);
       return;
     }
+
+    setAuthErrorNotice('');
 
     const requestSelect =
       'id, request_code, user_id, type, category, start_date, end_date, start_time, end_time, schedule, reason, status, review_comment, reviewed_by, created_at, profiles:user_id(full_name, department, position), request_files(id, file_name, file_type, file_size, file_path), request_events(id, action, title, actor_id, actor_name, from_status, to_status, comment, created_at)';
@@ -955,11 +962,21 @@ function App() {
   }
 
   if (isSupabaseConfigured && !session) {
-    return <AuthScreen />;
+    return (
+      <AuthScreen
+        externalError={authErrorNotice}
+        onAuthError={setAuthErrorNotice}
+        onClearExternalError={() => setAuthErrorNotice('')}
+      />
+    );
   }
 
   if (isSupabaseConfigured && session && isRecoveringPassword) {
     return <PasswordRecoveryScreen onDone={() => setIsRecoveringPassword(false)} />;
+  }
+
+  if (isSupabaseConfigured && session && !profile && isLoading) {
+    return <LoadingScreen />;
   }
 
   if (isSupabaseConfigured && profile && !isActiveUser) {
@@ -1194,7 +1211,7 @@ function PasswordInput({ value, onChange, autoComplete }) {
   );
 }
 
-function AuthScreen() {
+function AuthScreen({ externalError = '', onAuthError = () => {}, onClearExternalError = () => {} }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -1203,6 +1220,15 @@ function AuthScreen() {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (externalError) {
+      setMode('login');
+      setError(externalError);
+      setMessage('');
+      setIsSubmitting(false);
+    }
+  }, [externalError]);
+
   function switchAuthMode(nextMode) {
     setMode(nextMode);
     setEmail('');
@@ -1210,12 +1236,14 @@ function AuthScreen() {
     setFullName('');
     setError('');
     setMessage('');
+    onClearExternalError();
   }
 
   async function handleAuth(event) {
     event.preventDefault();
     setError('');
     setMessage('');
+    onClearExternalError();
     setIsSubmitting(true);
     const normalizedEmail = email.trim().toLowerCase();
 
@@ -1296,9 +1324,11 @@ function AuthScreen() {
     }
 
     if (!profileRow.active) {
+      const pendingMessage = 'Tu solicitud de acceso aún no ha sido aprobada por administración.';
+      onAuthError(pendingMessage);
+      setError(pendingMessage);
       await supabase.auth.signOut();
       setIsSubmitting(false);
-      setError('Tu solicitud de acceso aún no ha sido aprobada por administración.');
       return;
     }
 
