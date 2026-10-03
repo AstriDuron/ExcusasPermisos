@@ -2978,6 +2978,37 @@ tbody tr:last-child td {
     align-items: start;
   }
 
+  .people-table td[data-label="Personal"] {
+    padding-bottom: 12px;
+  }
+
+  .people-person {
+    width: 100%;
+    align-items: center;
+  }
+
+  .people-person div {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .people-person strong,
+  .people-person span:not(.mini-avatar) {
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .people-person strong {
+    white-space: normal;
+    line-height: 1.15;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .people-person span:not(.mini-avatar) {
+    white-space: nowrap;
+  }
+
   .requests-table td[data-label="Solicitud"] {
     display: flex;
     gap: 4px;
@@ -3113,6 +3144,11 @@ tbody tr:last-child td {
 
   .mobile-report-person div {
     min-width: 0;
+  }
+
+  .mobile-report-person .mini-avatar {
+    background: var(--gold);
+    color: #111827;
   }
 
   .mobile-report-person strong,

@@ -2142,15 +2142,15 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
               {people.map((person) => (
                 <Fragment key={person.id}>
                   <tr>
-                  <td data-label="Personal">
-                    <div className="report-person">
-                      <span className={`mini-avatar ${person.active ? 'active' : ''}`}>{getInitials(person.full_name)}</span>
-                      <div>
-                        <strong>{person.full_name}</strong>
-                        <span>{person.email || 'Correo pendiente de sincronizar'}</span>
+                    <td data-label="Personal">
+                      <div className="report-person people-person">
+                        <span className={`mini-avatar ${person.active ? 'active' : ''}`}>{getInitials(person.full_name)}</span>
+                        <div>
+                          <strong>{person.full_name}</strong>
+                          <span>{person.email || 'Correo pendiente de sincronizar'}</span>
+                        </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
                     <td data-label="Rol">
                       <select
                         value={person.role}
