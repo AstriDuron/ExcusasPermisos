@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Propuestas visuales - Excusas y permisos</title>
+    <style>
+      :root {
+        --gold: #f6a800;
+        --gold-deep: #c47b00;
+        --ink: #151515;
+        --graphite: #2b2d31;
+        --paper: #ffffff;
+        --mist: #f4f5f7;
+        --line: #dfe3e8;
+        --green: #198754;
+        --red: #b42318;
+        --amber-soft: #fff3ce;
+        --green-soft: #daf5e6;
+        --red-soft: #ffe2df;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #eef0f3;
+        color: var(--ink);
+      }
+
+      .board {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 34px;
+      }
+
+      .intro {
+        display: grid;
+        grid-template-columns: 86px minmax(0, 1fr);
+        gap: 18px;
+        align-items: center;
+        margin-bottom: 28px;
+      }
+
+      .intro img,
+      .brand img,
+      .phone-logo,
+      .dash-logo {
+        width: 76px;
+        height: 76px;
+        object-fit: contain;
+        border-radius: 50%;
+        background: white;
+      }
+
+      .eyebrow {
+        margin: 0 0 5px;
+        color: #68707b;
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 4px;
+        font-size: 2.15rem;
+        line-height: 1.08;
+      }
+
+      .intro p {
+        max-width: 760px;
+        margin-bottom: 0;
+        color: #5d646d;
+      }
+
+      .palette {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 18px 0 32px;
+      }
+
+      .swatch {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 36px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        font-size: 0.86rem;
+        font-weight: 700;
+      }
+
+      .dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--color);
+        border: 1px solid rgba(0, 0, 0, 0.14);
+      }
+
+      .options {
+        display: grid;
+        gap: 26px;
+      }
+
+      .option {
+        overflow: hidden;
+        border: 1px solid #d6dbe2;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 24px 70px rgba(24, 27, 32, 0.12);
+      }
+
+      .option-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+        padding: 22px 24px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .option-head h2 {
+        margin-bottom: 4px;
+        font-size: 1.25rem;
+      }
+
+      .option-head p {
+        margin-bottom: 0;
+        color: #646c76;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 0 11px;
+        border-radius: 999px;
+        background: #151515;
+        color: white;
+        font-size: 0.78rem;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .mock-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.02fr) minmax(340px, 0.98fr);
+        min-height: 620px;
+      }
+
+      .login-preview {
+        display: grid;
+        place-items: center;
+        padding: 42px;
+        background:
+          linear-gradient(145deg, rgba(246, 168, 0, 0.16), transparent 38%),
+          radial-gradient(circle at 15% 95%, rgba(21, 21, 21, 0.12), transparent 34%),
+          #f8f9fb;
+      }
+
+      .login-card {
+        width: min(100%, 420px);
+        padding: 28px;
+        border: 1px solid #e3e6eb;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 26px 80px rgba(28, 32, 38, 0.16);
+      }
+
+      .brand {
+        display: grid;
+        justify-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+        text-align: center;
+      }
+
+      .brand h3 {
+        margin-bottom: 0;
+        font-size: 1.25rem;
+      }
+
+      .field {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 14px;
+      }
+
+      .field span {
+        color: #4e5660;
+        font-size: 0.84rem;
+        font-weight: 800;
+      }
+
+      .input {
+        min-height: 46px;
+        padding: 0 13px;
+        border: 1px solid #d9dee5;
+        border-radius: 8px;
+        background: white;
+        color: #757b83;
+        line-height: 46px;
+      }
+
+      .gold-btn,
+      .dark-btn,
+      .outline-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 46px;
+        margin-top: 8px;
+        border: 0;
+        border-radius: 8px;
+        font-weight: 900;
+      }
+
+      .gold-btn {
+        background: var(--gold);
+        color: #151515;
+      }
+
+      .dark-btn {
+        background: #151515;
+        color: white;
+      }
+
+      .outline-btn {
+        border: 1px solid #2b2d31;
+        background: white;
+        color: #2b2d31;
+      }
+
+      .microcopy {
+        margin: 18px 0 0;
+        color: #707780;
+        font-size: 0.86rem;
+        text-align: center;
+      }
+
+      .dashboard-preview {
+        padding: 30px;
+        background: #f1f3f6;
+        border-left: 1px solid var(--line);
+      }
+
+      .dash-shell {
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: 210px minmax(0, 1fr);
+        min-height: 520px;
+        border: 1px solid #dce1e7;
+        border-radius: 12px;
+        background: white;
+      }
+
+      .dash-side {
+        padding: 20px;
+        background: #171717;
+        color: white;
+      }
+
+      .dash-logo {
+        width: 58px;
+        height: 58px;
+        margin-bottom: 14px;
+      }
+
+      .dash-side h3 {
+        margin-bottom: 24px;
+        font-size: 1rem;
+      }
+
+      .nav-item {
+        min-height: 38px;
+        margin-bottom: 8px;
+        padding: 9px 10px;
+        border-radius: 8px;
+        color: #d6d8dc;
+        font-weight: 750;
+      }
+
+      .nav-item.active {
+        background: var(--gold);
+        color: #151515;
+      }
+
+      .dash-main {
+        padding: 22px;
+      }
+
+      .dash-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 18px;
+      }
+
+      .dash-top h3 {
+        margin-bottom: 2px;
+        font-size: 1.28rem;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      .metric {
+        min-height: 78px;
+        padding: 13px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fafbfc;
+      }
+
+      .metric span {
+        color: #6b727c;
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 7px;
+        font-size: 1.7rem;
+      }
+
+      .request-row,
+      .request-card {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 10px;
+        padding: 13px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: white;
+      }
+
+      .row-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 0 9px;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 900;
+      }
+
+      .pending {
+        background: var(--amber-soft);
+        color: #8a5700;
+      }
+
+      .approved {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .rejected {
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      .muted {
+        color: #707780;
+        font-size: 0.86rem;
+      }
+
+      .phone-preview {
+        display: grid;
+        place-items: center;
+        padding: 36px;
+        background:
+          linear-gradient(180deg, #171717 0 42%, #f2f3f5 42%),
+          #f2f3f5;
+      }
+
+      .phone {
+        overflow: hidden;
+        width: 330px;
+        min-height: 660px;
+        border: 9px solid #111;
+        border-radius: 34px;
+        background: #f7f8fa;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.24);
+      }
+
+      .phone-head {
+        padding: 22px 18px 18px;
+        background: #171717;
+        color: white;
+      }
+
+      .phone-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .phone-logo {
+        width: 50px;
+        height: 50px;
+      }
+
+      .phone-head h3 {
+        margin-bottom: 0;
+        font-size: 1rem;
+      }
+
+      .phone-head p {
+        margin: 4px 0 0;
+        color: #d8dbe0;
+        font-size: 0.82rem;
+      }
+
+      .phone-body {
+        padding: 18px;
+      }
+
+      .big-action {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 66px;
+        margin-bottom: 16px;
+        padding: 0 16px;
+        border-radius: 14px;
+        background: var(--gold);
+        color: #151515;
+        font-weight: 950;
+      }
+
+      .quick-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .quick {
+        padding: 11px 8px;
+        border-radius: 12px;
+        background: white;
+        text-align: center;
+      }
+
+      .quick span {
+        display: block;
+        color: #6a727d;
+        font-size: 0.68rem;
+        font-weight: 850;
+      }
+
+      .quick strong {
+        display: block;
+        margin-top: 5px;
+        font-size: 1.25rem;
+      }
+
+      .bottom-nav {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        padding: 10px;
+        border-top: 1px solid #e1e5ea;
+        background: white;
+      }
+
+      .bottom-nav div {
+        padding: 8px 4px;
+        border-radius: 10px;
+        color: #666f79;
+        font-size: 0.72rem;
+        font-weight: 850;
+        text-align: center;
+      }
+
+      .bottom-nav .active {
+        background: #fff3ce;
+        color: #171717;
+      }
+
+      .executive {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        min-height: 620px;
+        background: #f6f7f9;
+      }
+
+      .executive-aside {
+        padding: 34px 28px;
+        background:
+          linear-gradient(180deg, rgba(246, 168, 0, 0.18), transparent 48%),
+          #ffffff;
+        border-right: 1px solid var(--line);
+      }
+
+      .executive-aside img {
+        width: 96px;
+        height: 96px;
+        object-fit: contain;
+        border-radius: 50%;
+      }
+
+      .executive-aside h2 {
+        margin: 18px 0 8px;
+        font-size: 1.6rem;
+      }
+
+      .executive-aside p {
+        color: #5f6872;
+      }
+
+      .menu-card {
+        margin-top: 22px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: white;
+      }
+
+      .menu-card div {
+        padding: 11px 12px;
+        border-radius: 9px;
+        font-weight: 850;
+      }
+
+      .menu-card .active {
+        background: #171717;
+        color: white;
+      }
+
+      .executive-main {
+        padding: 34px;
+      }
+
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-bottom: 18px;
+      }
+
+      .filter {
+        min-height: 38px;
+        padding: 0 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        color: #59616b;
+        font-weight: 800;
+        line-height: 38px;
+      }
+
+      .report-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 16px;
+      }
+
+      .report-panel {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: white;
+      }
+
+      .bar {
+        height: 12px;
+        margin: 12px 0;
+        border-radius: 999px;
+        background: #edf0f3;
+      }
+
+      .bar span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--gold);
+      }
+
+      @media (max-width: 1080px) {
+        .mock-grid,
+        .executive {
+          grid-template-columns: 1fr;
+        }
+
+        .dashboard-preview {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
+      }
+
+      @media (max-width: 720px) {
+        .board {
+          padding: 18px;
+        }
+
+        .intro,
+        .dash-shell,
+        .report-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .metrics {
+          grid-template-columns: 1fr;
+        }
+
+        .phone {
+          width: min(100%, 330px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <section class="intro">
+        <img src="/logo-minas.jpg" alt="Logo Instituto Técnico Regional Minas de Oro" />
+        <div>
+          <p class="eyebrow">Propuestas visuales</p>
+          <h1>Gestión de excusas y permisos</h1>
+          <p>
+            Tres direcciones para profesionalizar la app usando la identidad del Instituto Técnico Regional
+            Minas de Oro. La opción final puede mezclar elementos de más de una propuesta.
+          </p>
+        </div>
+      </section>
+
+      <div class="palette" aria-label="Paleta institucional propuesta">
+        <span class="swatch"><i class="dot" style="--color: #f6a800"></i>Oro institucional</span>
+        <span class="swatch"><i class="dot" style="--color: #151515"></i>Negro técnico</span>
+        <span class="swatch"><i class="dot" style="--color: #f4f5f7"></i>Fondo operativo</span>
+        <span class="swatch"><i class="dot" style="--color: #198754"></i>Aprobado</span>
+        <span class="swatch"><i class="dot" style="--color: #b42318"></i>Rechazado</span>
+      </div>
+
+      <section class="options">
+        <article class="option">
+          <div class="option-head">
+            <div>
+              <p class="eyebrow">Opción 1</p>
+              <h2>Portal Institucional Sobrio</h2>
+              <p>Formal, claro y confiable. Ideal si se quiere una imagen institucional fuerte desde el login.</p>
+            </div>
+            <span class="tag">Recomendada para lanzamiento</span>
+          </div>
+          <div class="mock-grid">
+            <div class="login-preview">
+              <div class="login-card">
+                <div class="brand">
+                  <img src="/logo-minas.jpg" alt="" />
+                  <div>
+                    <p class="eyebrow">Acceso seguro</p>
+                    <h3>Instituto Técnico Regional Minas de Oro</h3>
+                    <p class="muted">Gestión de excusas y permisos</p>
+                  </div>
+                </div>
+                <div class="field">
+                  <span>Correo institucional</span>
+                  <div class="input">usuario@instituto.edu</div>
+                </div>
+                <div class="field">
+                  <span>Contraseña</span>
+                  <div class="input">••••••••••••</div>
+                </div>
+                <button class="gold-btn">Entrar al sistema</button>
+                <p class="microcopy">Acceso exclusivo para personal autorizado.</p>
+              </div>
+            </div>
+            <div class="dashboard-preview">
+              <div class="dash-shell">
+                <aside class="dash-side">
+                  <img class="dash-logo" src="/logo-minas.jpg" alt="" />
+                  <h3>Minas de Oro</h3>
+                  <div class="nav-item active">Revisión</div>
+                  <div class="nav-item">Solicitudes</div>
+                  <div class="nav-item">Informe mensual</div>
+                  <div class="nav-item">Personal</div>
+                </aside>
+                <section class="dash-main">
+                  <div class="dash-top">
+                    <div>
+                      <p class="eyebrow">Panel administrativo</p>
+                      <h3>Bandeja de revisión</h3>
+                    </div>
+                    <span class="status pending">Octubre 2026</span>
+                  </div>
+                  <div class="metrics">
+                    <div class="metric"><span>Pendientes</span><strong>8</strong></div>
+                    <div class="metric"><span>Aprobadas</span><strong>24</strong></div>
+                    <div class="metric"><span>Rechazadas</span><strong>2</strong></div>
+                  </div>
+                  <div class="request-row">
+                    <div class="row-line">
+                      <strong>María Fernanda López</strong>
+                      <span class="status pending">Pendiente</span>
+                    </div>
+                    <span class="muted">Excusa médica · Jornada completa · Con comprobante</span>
+                  </div>
+                  <div class="request-row">
+                    <div class="row-line">
+                      <strong>Carlos Rivera</strong>
+                      <span class="status approved">Aprobada</span>
+                    </div>
+                    <span class="muted">Permiso personal · Mañana · Reposición solicitada</span>
+                  </div>
+                  <div class="request-row">
+                    <div class="row-line">
+                      <strong>Ana Martínez</strong>
+                      <span class="status rejected">Rechazada</span>
+                    </div>
+                    <span class="muted">Falta comprobante válido</span>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="option">
+          <div class="option-head">
+            <div>
+              <p class="eyebrow">Opción 2</p>
+              <h2>App Móvil Para Personal</h2>
+              <p>Más cálida y rápida para docentes. Prioriza crear solicitudes desde celular.</p>
+            </div>
+            <span class="tag">Mejor para docentes</span>
+          </div>
+          <div class="mock-grid">
+            <div class="phone-preview">
+              <div class="phone">
+                <div class="phone-head">
+                  <div class="phone-brand">
+                    <img class="phone-logo" src="/logo-minas.jpg" alt="" />
+                    <div>
+                      <h3>Minas de Oro</h3>
+                      <p>Portal del personal</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="phone-body">
+                  <div class="big-action">
+                    <span>Nueva solicitud</span>
+                    <strong>＋</strong>
+                  </div>
+                  <div class="quick-stats">
+                    <div class="quick"><span>Pend.</span><strong>1</strong></div>
+                    <div class="quick"><span>Aprob.</span><strong>5</strong></div>
+                    <div class="quick"><span>Rech.</span><strong>0</strong></div>
+                  </div>
+                  <div class="request-card">
+                    <div class="row-line">
+                      <strong>Excusa médica</strong>
+                      <span class="status pending">Pendiente</span>
+                    </div>
+                    <span class="muted">Hoy · Jornada completa · Constancia adjunta</span>
+                  </div>
+                  <div class="request-card">
+                    <div class="row-line">
+                      <strong>Permiso personal</strong>
+                      <span class="status approved">Aprobada</span>
+                    </div>
+                    <span class="muted">28 sep. · Mañana · Reposición aprobada</span>
+                  </div>
+                  <div class="request-card">
+                    <div class="row-line">
+                      <strong>Excusa académica</strong>
+                      <span class="status approved">Aprobada</span>
+                    </div>
+                    <span class="muted">15 sep. · Tarde · Revisada por dirección</span>
+                  </div>
+                </div>
+                <div class="bottom-nav">
+                  <div class="active">Inicio</div>
+                  <div>Historial</div>
+                  <div>Cuenta</div>
+                </div>
+              </div>
+            </div>
+            <div class="dashboard-preview">
+              <div class="login-card" style="width: 100%; max-width: 500px; margin: 42px auto;">
+                <p class="eyebrow">Formulario móvil</p>
+                <h3>Nueva solicitud</h3>
+                <div class="field"><span>Tipo</span><div class="input">Excusa</div></div>
+                <div class="field"><span>Fecha</span><div class="input">02 oct. 2026</div></div>
+                <div class="field"><span>Motivo</span><div class="input">Consulta médica programada</div></div>
+                <div class="field"><span>Comprobante</span><div class="input">constancia.pdf</div></div>
+                <button class="dark-btn">Enviar solicitud</button>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="option">
+          <div class="option-head">
+            <div>
+              <p class="eyebrow">Opción 3</p>
+              <h2>Dashboard Ejecutivo</h2>
+              <p>Más robusto para dirección: informes, filtros, métricas y lectura rápida de volumen mensual.</p>
+            </div>
+            <span class="tag">Mejor para administración</span>
+          </div>
+          <div class="executive">
+            <aside class="executive-aside">
+              <img src="/logo-minas.jpg" alt="" />
+              <h2>Gestión institucional</h2>
+              <p>Control mensual de excusas, permisos y comprobantes del personal.</p>
+              <div class="menu-card">
+                <div class="active">Resumen mensual</div>
+                <div>Bandeja de revisión</div>
+                <div>Historial del personal</div>
+                <div>Exportaciones</div>
+              </div>
+            </aside>
+            <section class="executive-main">
+              <div class="dash-top">
+                <div>
+                  <p class="eyebrow">Octubre 2026</p>
+                  <h2>Informe mensual</h2>
+                </div>
+                <button class="gold-btn" style="width: 156px;">Exportar CSV</button>
+              </div>
+              <div class="filters">
+                <div class="filter">Estado: Todos</div>
+                <div class="filter">Tipo: Todos</div>
+                <div class="filter">Área: Todas</div>
+                <div class="filter">Personal</div>
+              </div>
+              <div class="metrics">
+                <div class="metric"><span>Solicitudes</span><strong>34</strong></div>
+                <div class="metric"><span>Con comprobante</span><strong>29</strong></div>
+                <div class="metric"><span>Pendientes</span><strong>8</strong></div>
+              </div>
+              <div class="report-grid">
+                <div class="report-panel">
+                  <h3>Actividad por tipo</h3>
+                  <p class="muted">Excusas médicas</p>
+                  <div class="bar"><span style="width: 72%"></span></div>
+                  <p class="muted">Permisos personales</p>
+                  <div class="bar"><span style="width: 46%"></span></div>
+                  <p class="muted">Emergencias familiares</p>
+                  <div class="bar"><span style="width: 28%"></span></div>
+                </div>
+                <div class="report-panel">
+                  <h3>Personal destacado</h3>
+                  <div class="request-row">
+                    <strong>María F. López</strong>
+                    <span class="muted">3 solicitudes · 2 aprobadas</span>
+                  </div>
+                  <div class="request-row">
+                    <strong>Carlos Rivera</strong>
+                    <span class="muted">2 permisos · 0 pendientes</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
