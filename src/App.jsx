@@ -21,6 +21,7 @@ import {
   PanelLeftOpen,
   Plus,
   Search,
+  Send,
   Upload,
   UserCheck,
   Users,
@@ -840,6 +841,42 @@ function App() {
     return true;
   }
 
+  async function resendConfirmationEmail(person) {
+    setNotice('');
+
+    if (!isSupabaseConfigured || !isAdmin) return false;
+
+    if (!person?.email) {
+      setNotice('No se puede reenviar el correo porque el usuario no tiene correo sincronizado.');
+      return false;
+    }
+
+    if (person.email_confirmed_at) {
+      setNotice('Este usuario ya confirmó su correo.');
+      return false;
+    }
+
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: person.email,
+      options: {
+        emailRedirectTo: appUrl
+      }
+    });
+
+    if (error) {
+      const normalizedMessage = error.message?.toLowerCase() ?? '';
+      const message = normalizedMessage.includes('rate') || normalizedMessage.includes('limit')
+        ? 'Supabase limitó el reenvío por seguridad. Espera unos minutos antes de intentar otra vez.'
+        : 'No se pudo reenviar el correo de confirmación. Revisa la configuración SMTP y los logs.';
+      setNotice(message);
+      return false;
+    }
+
+    setNotice(`Correo de confirmación reenviado a ${person.email}.`);
+    return true;
+  }
+
   function exportReport() {
     const rows = [
       ['ID', 'Personal', 'Tipo', 'Categoria', 'Inicio', 'Fin', 'Hora inicio', 'Hora fin', 'Jornada', 'Estado', 'Comprobante', 'Comentario'],
@@ -1035,6 +1072,7 @@ function App() {
             people={people}
             currentUserId={activeUser.id}
             onUpdatePerson={updatePerson}
+            onResendConfirmation={resendConfirmationEmail}
           />
         )}
       </section>
@@ -2200,7 +2238,7 @@ function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, o
   );
 }
 
-function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
+function PeopleManagement({ people, currentUserId, onUpdatePerson, onResendConfirmation }) {
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [expandedHistoryId, setExpandedHistoryId] = useState(null);
   const pendingPeople = people.filter((person) => !person.active).length;
@@ -2284,6 +2322,17 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
                     </td>
                     <td data-label="Acciones">
                       <div className="table-action-group">
+                        {!person.email_confirmed_at && person.email && (
+                          <button
+                            className="icon-action"
+                            type="button"
+                            onClick={() => onResendConfirmation(person)}
+                            aria-label="Reenviar correo de confirmación"
+                            title="Reenviar correo"
+                          >
+                            <Send size={17} />
+                          </button>
+                        )}
                         <button
                           className={`icon-action ${expandedHistoryId === person.id ? 'active' : ''}`}
                           type="button"
@@ -2321,15 +2370,17 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
           currentUserId={currentUserId}
           onClose={() => setSelectedPerson(null)}
           onUpdatePerson={onUpdatePerson}
+          onResendConfirmation={onResendConfirmation}
         />
       )}
     </section>
   );
 }
 
-function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) {
+function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson, onResendConfirmation }) {
   const [comment, setComment] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const isCurrentUser = person.id === currentUserId;
   const isEmailVerified = Boolean(person.email_confirmed_at);
 
@@ -2350,6 +2401,12 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) 
 
     setComment('');
     onClose();
+  }
+
+  async function handleResendConfirmation() {
+    setIsResending(true);
+    await onResendConfirmation(person);
+    setIsResending(false);
   }
 
   return (
@@ -2411,9 +2468,17 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) 
               <span>No puede modificar el acceso de su propia cuenta desde este panel.</span>
             </div>
           ) : !isEmailVerified && !person.active ? (
-            <div className="locked-review-note">
-              <AlertTriangle size={18} />
-              <span>Este usuario debe confirmar su correo antes de aprobar el acceso.</span>
+            <div className="pending-confirmation-box">
+              <div className="locked-review-note">
+                <AlertTriangle size={18} />
+                <span>Este usuario debe confirmar su correo antes de aprobar el acceso.</span>
+              </div>
+              {person.email && (
+                <button className="secondary-action table-action" type="button" onClick={handleResendConfirmation} disabled={isResending}>
+                  <Send size={17} />
+                  {isResending ? 'Enviando...' : 'Reenviar correo'}
+                </button>
+              )}
             </div>
           ) : (
             <div>

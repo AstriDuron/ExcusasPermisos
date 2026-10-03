@@ -1400,6 +1400,21 @@ tbody tr:last-child td {
   font-weight: 850;
 }
 
+.drawer-review-box .pending-confirmation-box {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.drawer-review-box .pending-confirmation-box .locked-review-note {
+  display: flex;
+}
+
+.pending-confirmation-box .table-action {
+  width: 100%;
+  justify-content: center;
+}
+
 .request-history {
   display: grid;
   padding: 16px 22px;
