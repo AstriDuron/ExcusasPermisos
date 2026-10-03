@@ -1566,27 +1566,27 @@ function RequestTable({ requests, isAdmin, onReview }) {
             {requests.map((request) => (
               <Fragment key={request.uuid ?? request.id}>
                 <tr>
-                  <td>
+                  <td data-label="Código">
                     <strong>{request.id}</strong>
                   </td>
-                  <td>
+                  <td data-label="Solicitud">
                     <strong>{request.type}</strong>
                     <span>{request.category}</span>
                   </td>
                   {isAdmin && (
-                    <td>
+                    <td data-label="Personal">
                       <strong>{request.personName}</strong>
                       <span>{request.schedule}</span>
                     </td>
                   )}
-                  <td>
+                  <td data-label="Periodo">
                     <strong>{formatDate(request.startDate)}</strong>
                     <span>{request.startDate !== request.endDate ? formatDate(request.endDate) : 'Un día'}</span>
                   </td>
-                  <td>
+                  <td data-label="Estado">
                     <StatusPill status={request.status} />
                   </td>
-                  <td>
+                  <td data-label="Comprobante">
                     {request.attachment ? (
                       <span className="attachment-link compact-attachment">
                         <Paperclip size={15} />
@@ -1596,7 +1596,7 @@ function RequestTable({ requests, isAdmin, onReview }) {
                       <span className="muted">Sin adjunto</span>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Acciones">
                     <div className="table-action-group">
                       <button
                         className={`icon-action ${expandedHistoryId === (request.uuid ?? request.id) ? 'active' : ''}`}
@@ -1903,19 +1903,19 @@ function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, o
               <tbody>
                 {[...byPerson.values()].map((row) => (
                   <tr key={row.id}>
-                    <td>
+                    <td data-label="Personal">
                       <div className="report-person">
                         <span className="mini-avatar">{getInitials(row.name)}</span>
                         <strong>{row.name}</strong>
                       </div>
                     </td>
-                    <td>{row.area}</td>
-                    <td>{row.total}</td>
-                    <td>{row.excuses}</td>
-                    <td>{row.permissions}</td>
-                    <td>{row.approved}</td>
-                    <td>{row.pending}</td>
-                    <td>{row.rejected}</td>
+                    <td data-label="Área">{row.area}</td>
+                    <td data-label="Total">{row.total}</td>
+                    <td data-label="Excusas">{row.excuses}</td>
+                    <td data-label="Permisos">{row.permissions}</td>
+                    <td data-label="Aprobadas">{row.approved}</td>
+                    <td data-label="Pendientes">{row.pending}</td>
+                    <td data-label="Rechazadas">{row.rejected}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1991,7 +1991,7 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
               {people.map((person) => (
                 <Fragment key={person.id}>
                   <tr>
-                  <td>
+                  <td data-label="Personal">
                     <div className="report-person">
                       <span className={`mini-avatar ${person.active ? 'active' : ''}`}>{getInitials(person.full_name)}</span>
                       <div>
@@ -2000,7 +2000,7 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
                       </div>
                     </div>
                   </td>
-                    <td>
+                    <td data-label="Rol">
                       <select
                         value={person.role}
                         onChange={(event) => onUpdatePerson(person.id, { role: event.target.value })}
@@ -2010,24 +2010,24 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
                         <option value="admin">Administrador</option>
                       </select>
                     </td>
-                    <td>
+                    <td data-label="Área">
                       <input
                         defaultValue={person.department}
                         onBlur={(event) => onUpdatePerson(person.id, { department: event.target.value.trim() || 'Institución' })}
                       />
                     </td>
-                    <td>
+                    <td data-label="Cargo">
                       <input
                         defaultValue={person.position}
                         onBlur={(event) => onUpdatePerson(person.id, { position: event.target.value.trim() || 'Personal' })}
                       />
                     </td>
-                    <td>
+                    <td data-label="Estado">
                       <span className={`access-pill ${person.active ? 'active' : 'pending'}`}>
                         {person.active ? 'Activo' : 'Solicitado'}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Acciones">
                       <div className="table-action-group">
                         <button
                           className={`icon-action ${expandedHistoryId === person.id ? 'active' : ''}`}
