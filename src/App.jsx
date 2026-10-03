@@ -135,6 +135,32 @@ function formatDate(value) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
+function formatTime(value) {
+  if (!value) return '';
+  const [hours = '00', minutes = '00'] = String(value).split(':');
+  return new Intl.DateTimeFormat('es-HN', {
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(new Date(`2026-01-01T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`));
+}
+
+function formatRequestPeriod(request) {
+  if (request.schedule === 'Por horas' && request.startTime && request.endTime) {
+    return `${formatDate(request.startDate)}, ${formatTime(request.startTime)} - ${formatTime(request.endTime)}`;
+  }
+
+  if (request.startDate !== request.endDate) {
+    return `${formatDate(request.startDate)} - ${formatDate(request.endDate)}`;
+  }
+
+  return formatDate(request.startDate);
+}
+
+function formatRequestPeriodHint(request) {
+  if (request.schedule === 'Por horas' && request.startTime && request.endTime) return 'Por horas';
+  return request.startDate !== request.endDate ? 'Rango de fechas' : 'Un día';
+}
+
 function formatDateTime(value) {
   if (!value) return 'Sin fecha';
   return new Intl.DateTimeFormat('es-HN', {
@@ -297,6 +323,8 @@ function mapRemoteRequest(row) {
     category: row.category,
     startDate: row.start_date,
     endDate: row.end_date,
+    startTime: row.start_time?.slice(0, 5) ?? '',
+    endTime: row.end_time?.slice(0, 5) ?? '',
     schedule: row.schedule,
     reason: row.reason,
     status: statusFromDb[row.status] ?? 'Pendiente',
@@ -421,9 +449,9 @@ function App() {
     }
 
     const requestSelect =
-      'id, request_code, user_id, type, category, start_date, end_date, schedule, reason, status, review_comment, reviewed_by, created_at, profiles:user_id(full_name, department, position), request_files(id, file_name, file_type, file_size, file_path), request_events(id, action, title, actor_id, actor_name, from_status, to_status, comment, created_at)';
+      'id, request_code, user_id, type, category, start_date, end_date, start_time, end_time, schedule, reason, status, review_comment, reviewed_by, created_at, profiles:user_id(full_name, department, position), request_files(id, file_name, file_type, file_size, file_path), request_events(id, action, title, actor_id, actor_name, from_status, to_status, comment, created_at)';
     const fallbackRequestSelect =
-      'id, request_code, user_id, type, category, start_date, end_date, schedule, reason, status, review_comment, reviewed_by, created_at, profiles:user_id(full_name, department, position), request_files(id, file_name, file_type, file_size, file_path)';
+      'id, request_code, user_id, type, category, start_date, end_date, start_time, end_time, schedule, reason, status, review_comment, reviewed_by, created_at, profiles:user_id(full_name, department, position), request_files(id, file_name, file_type, file_size, file_path)';
 
     let { data: requestRows, error: requestError } = await supabase
       .from('requests')
@@ -552,6 +580,23 @@ function App() {
       return false;
     }
 
+    if (payload.schedule === 'Por horas') {
+      if (!payload.startTime || !payload.endTime) {
+        setNotice('Debe indicar hora de inicio y hora final.');
+        return false;
+      }
+
+      if (payload.startDate !== payload.endDate) {
+        setNotice('Las solicitudes por horas deben ser para un solo día.');
+        return false;
+      }
+
+      if (payload.startTime >= payload.endTime) {
+        setNotice('La hora de inicio debe ser menor que la hora final.');
+        return false;
+      }
+    }
+
     if (!isSupabaseConfigured) {
       const nextRequest = {
         ...stripFileForStorage(payload),
@@ -581,6 +626,8 @@ function App() {
       category: payload.category,
       start_date: payload.startDate,
       end_date: payload.endDate,
+      start_time: payload.schedule === 'Por horas' ? payload.startTime : null,
+      end_time: payload.schedule === 'Por horas' ? payload.endTime : null,
       schedule: payload.schedule,
       reason: payload.reason.trim(),
       status: 'pendiente'
@@ -757,9 +804,38 @@ function App() {
     return true;
   }
 
+  async function updatePersonPassword(personId, password) {
+    setNotice('');
+
+    if (!isSupabaseConfigured || !isAdmin) return false;
+
+    if (!password || password.length < 8) {
+      setNotice('La nueva clave debe tener al menos 8 caracteres.');
+      return false;
+    }
+
+    const { error } = await supabase.functions.invoke('admin-set-password', {
+      body: {
+        userId: personId,
+        password
+      }
+    });
+
+    if (error) {
+      const message = error.message?.toLowerCase().includes('not found')
+        ? 'Falta desplegar la función admin-set-password en Supabase.'
+        : 'No se pudo actualizar la clave. Verifica la función de Supabase y los permisos de administrador.';
+      setNotice(message);
+      return false;
+    }
+
+    setNotice('Clave actualizada correctamente.');
+    return true;
+  }
+
   function exportReport() {
     const rows = [
-      ['ID', 'Personal', 'Tipo', 'Categoria', 'Inicio', 'Fin', 'Jornada', 'Estado', 'Comprobante', 'Comentario'],
+      ['ID', 'Personal', 'Tipo', 'Categoria', 'Inicio', 'Fin', 'Hora inicio', 'Hora fin', 'Jornada', 'Estado', 'Comprobante', 'Comentario'],
       ...reportRows.map((request) => [
         request.id,
         request.personName,
@@ -767,6 +843,8 @@ function App() {
         request.category,
         request.startDate,
         request.endDate,
+        request.startTime || '',
+        request.endTime || '',
         request.schedule,
         request.status,
         request.attachment?.name ?? '',
@@ -946,7 +1024,12 @@ function App() {
           />
         )}
         {!isLoading && activeView === 'people' && isAdmin && (
-          <PeopleManagement people={people} currentUserId={activeUser.id} onUpdatePerson={updatePerson} />
+          <PeopleManagement
+            people={people}
+            currentUserId={activeUser.id}
+            onUpdatePerson={updatePerson}
+            onUpdatePassword={updatePersonPassword}
+          />
         )}
       </section>
     </main>
@@ -1407,6 +1490,8 @@ function RequestForm({ onSubmit }) {
     category: 'Médica',
     startDate: new Date().toISOString().slice(0, 10),
     endDate: new Date().toISOString().slice(0, 10),
+    startTime: '',
+    endTime: '',
     schedule: 'Jornada completa',
     reason: '',
     attachment: null
@@ -1416,7 +1501,23 @@ function RequestForm({ onSubmit }) {
   const [isReadingFile, setIsReadingFile] = useState(false);
 
   function updateField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => {
+      if (field === 'schedule' && value === 'Por horas') {
+        return {
+          ...current,
+          schedule: value,
+          endDate: current.startDate,
+          startTime: current.startTime || '08:00',
+          endTime: current.endTime || '09:00'
+        };
+      }
+
+      if (field === 'schedule') {
+        return { ...current, schedule: value, startTime: '', endTime: '' };
+      }
+
+      return { ...current, [field]: value };
+    });
     setFormError('');
   }
 
@@ -1483,6 +1584,18 @@ function RequestForm({ onSubmit }) {
       return;
     }
 
+    if (form.schedule === 'Por horas') {
+      if (!form.startTime || !form.endTime) {
+        setFormError('Debe indicar hora de inicio y hora final.');
+        return;
+      }
+
+      if (form.startTime >= form.endTime) {
+        setFormError('La hora de inicio debe ser menor que la hora final.');
+        return;
+      }
+    }
+
     const formElement = event.currentTarget;
     const wasSubmitted = await onSubmit(form);
     if (!wasSubmitted) return;
@@ -1492,6 +1605,8 @@ function RequestForm({ onSubmit }) {
       category: 'Médica',
       startDate: new Date().toISOString().slice(0, 10),
       endDate: new Date().toISOString().slice(0, 10),
+      startTime: '',
+      endTime: '',
       schedule: 'Jornada completa',
       reason: '',
       attachment: null
@@ -1552,7 +1667,7 @@ function RequestForm({ onSubmit }) {
                 setForm((current) => ({
                   ...current,
                   startDate: nextStartDate,
-                  endDate: current.endDate < nextStartDate ? nextStartDate : current.endDate
+                  endDate: current.schedule === 'Por horas' || current.endDate < nextStartDate ? nextStartDate : current.endDate
                 }));
                 setFormError('');
               }}
@@ -1565,10 +1680,34 @@ function RequestForm({ onSubmit }) {
               type="date"
               value={form.endDate}
               min={form.startDate}
-              onChange={(event) => updateField('endDate', event.target.value)}
+              onChange={(event) => updateField('endDate', form.schedule === 'Por horas' ? form.startDate : event.target.value)}
+              disabled={form.schedule === 'Por horas'}
               required
             />
           </label>
+          {form.schedule === 'Por horas' && (
+            <>
+              <label>
+                <span>Hora inicio</span>
+                <input
+                  type="time"
+                  value={form.startTime}
+                  onChange={(event) => updateField('startTime', event.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                <span>Hora final</span>
+                <input
+                  type="time"
+                  value={form.endTime}
+                  min={form.startTime}
+                  onChange={(event) => updateField('endTime', event.target.value)}
+                  required
+                />
+              </label>
+            </>
+          )}
         </div>
 
         <label className="wide-field">
@@ -1707,8 +1846,8 @@ function RequestTable({ requests, isAdmin, onReview }) {
                     </td>
                   )}
                   <td data-label="Periodo">
-                    <strong>{formatDate(request.startDate)}</strong>
-                    <span>{request.startDate !== request.endDate ? formatDate(request.endDate) : 'Un día'}</span>
+                    <strong>{formatRequestPeriod(request)}</strong>
+                    <span>{formatRequestPeriodHint(request)}</span>
                   </td>
                   <td data-label="Estado">
                     <StatusPill status={request.status} />
@@ -1809,10 +1948,7 @@ function RequestDetailDrawer({ request, isAdmin, onClose, onReview }) {
           )}
           <div>
             <span>Periodo</span>
-            <strong>
-              {formatDate(request.startDate)}
-              {request.startDate !== request.endDate ? ` - ${formatDate(request.endDate)}` : ''}
-            </strong>
+            <strong>{formatRequestPeriod(request)}</strong>
           </div>
           <div>
             <span>Jornada</span>
@@ -2058,7 +2194,7 @@ function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, o
   );
 }
 
-function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
+function PeopleManagement({ people, currentUserId, onUpdatePerson, onUpdatePassword }) {
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [expandedHistoryId, setExpandedHistoryId] = useState(null);
   const pendingPeople = people.filter((person) => !person.active).length;
@@ -2173,15 +2309,19 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
           currentUserId={currentUserId}
           onClose={() => setSelectedPerson(null)}
           onUpdatePerson={onUpdatePerson}
+          onUpdatePassword={onUpdatePassword}
         />
       )}
     </section>
   );
 }
 
-function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) {
+function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson, onUpdatePassword }) {
   const [comment, setComment] = useState('');
+  const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const isCurrentUser = person.id === currentUserId;
 
   useEffect(() => {
@@ -2201,6 +2341,25 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) 
 
     setComment('');
     onClose();
+  }
+
+  async function handlePasswordChange(event) {
+    event.preventDefault();
+    setPasswordMessage('');
+
+    if (temporaryPassword.length < 8) {
+      setPasswordMessage('La nueva clave debe tener al menos 8 caracteres.');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    const wasUpdated = await onUpdatePassword(person.id, temporaryPassword);
+    setIsUpdatingPassword(false);
+
+    if (!wasUpdated) return;
+
+    setTemporaryPassword('');
+    setPasswordMessage('Clave actualizada correctamente.');
   }
 
   return (
@@ -2240,6 +2399,34 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) 
             <strong>{person.position}</strong>
           </div>
         </div>
+
+        {!isCurrentUser && (
+          <form className="drawer-review-box admin-password-box" onSubmit={handlePasswordChange}>
+            <label>
+              <span>Nueva clave temporal</span>
+              <div className="input-icon password-input">
+                <LockKeyhole size={17} />
+                <input
+                  type="text"
+                  minLength="8"
+                  value={temporaryPassword}
+                  onChange={(event) => {
+                    setTemporaryPassword(event.target.value);
+                    setPasswordMessage('');
+                  }}
+                  placeholder="Mínimo 8 caracteres"
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+            </label>
+            {passwordMessage && <div className="notice success">{passwordMessage}</div>}
+            <button className="secondary-action table-action" type="submit" disabled={isUpdatingPassword}>
+              <LockKeyhole size={17} />
+              {isUpdatingPassword ? 'Actualizando...' : 'Cambiar clave'}
+            </button>
+          </form>
+        )}
 
         <div className="drawer-review-box">
           <label>

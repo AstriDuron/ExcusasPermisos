@@ -22,6 +22,8 @@ create table if not exists public.requests (
   category text not null,
   start_date date not null,
   end_date date not null,
+  start_time time,
+  end_time time,
   schedule text not null,
   reason text not null check (char_length(reason) between 3 and 1200),
   status text not null default 'pendiente' check (status in ('pendiente', 'aprobada', 'rechazada')),
@@ -29,7 +31,21 @@ create table if not exists public.requests (
   reviewed_by uuid references public.profiles(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint valid_request_dates check (end_date >= start_date)
+  constraint valid_request_dates check (end_date >= start_date),
+  constraint valid_request_hours check (
+    (
+      schedule <> 'Por horas'
+      and start_time is null
+      and end_time is null
+    )
+    or (
+      schedule = 'Por horas'
+      and start_date = end_date
+      and start_time is not null
+      and end_time is not null
+      and end_time > start_time
+    )
+  )
 );
 
 create table if not exists public.request_files (
