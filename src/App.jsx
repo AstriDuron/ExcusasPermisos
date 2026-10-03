@@ -1915,6 +1915,30 @@ function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, o
       <div className="report-content">
         {viewMode === 'table' ? (
           <div className="table-wrap">
+            <div className="mobile-report-list" aria-label="Resumen mensual por persona">
+              {[...byPerson.values()].map((row) => (
+                <article className="mobile-report-card" key={row.id}>
+                  <div className="mobile-report-person">
+                    <span className="mini-avatar">{getInitials(row.name)}</span>
+                    <div>
+                      <strong>{row.name}</strong>
+                      <span>{row.area}</span>
+                    </div>
+                  </div>
+                  <div className="mobile-report-total">
+                    <strong>{row.total}</strong>
+                    <span>{row.total === 1 ? 'solicitud' : 'solicitudes'}</span>
+                  </div>
+                  <div className="mobile-report-chips">
+                    {row.permissions > 0 && <span>{row.permissions} {row.permissions === 1 ? 'permiso' : 'permisos'}</span>}
+                    {row.excuses > 0 && <span>{row.excuses} {row.excuses === 1 ? 'excusa' : 'excusas'}</span>}
+                    {row.approved > 0 && <span className="success">{row.approved} {row.approved === 1 ? 'aprobada' : 'aprobadas'}</span>}
+                    {row.pending > 0 && <span className="warning">{row.pending} {row.pending === 1 ? 'pendiente' : 'pendientes'}</span>}
+                    {row.rejected > 0 && <span className="danger">{row.rejected} {row.rejected === 1 ? 'rechazada' : 'rechazadas'}</span>}
+                  </div>
+                </article>
+              ))}
+            </div>
             <table className="report-table">
               <thead>
                 <tr>

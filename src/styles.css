@@ -988,6 +988,10 @@ textarea {
   white-space: nowrap;
 }
 
+.mobile-report-list {
+  display: none;
+}
+
 .people-table {
   min-width: 940px;
 }
@@ -2855,13 +2859,38 @@ tbody tr:last-child td {
     padding-bottom: 14px;
   }
 
-  .requests-table td[data-label="Solicitud"],
   .requests-table td[data-label="Personal"],
   .requests-table td[data-label="Periodo"],
   .requests-table td[data-label="Comprobante"],
   .report-table td,
   .people-table td {
-    grid-template-columns: 92px minmax(0, 1fr) !important;
+    grid-template-columns: 1fr !important;
+    gap: 4px;
+    align-items: start;
+  }
+
+  .requests-table td[data-label="Solicitud"] {
+    display: flex;
+    gap: 4px;
+    align-items: baseline;
+    padding-top: 10px;
+    padding-bottom: 6px;
+  }
+
+  .requests-table td[data-label="Solicitud"]::before {
+    display: none;
+  }
+
+  .requests-table td[data-label="Personal"]::before {
+    content: "Solicitante";
+  }
+
+  .requests-table td[data-label="Periodo"]::before {
+    content: "Fecha";
+  }
+
+  .requests-table td[data-label="Comprobante"]::before {
+    content: "Adjunto";
   }
 
   .requests-table td[data-label="Solicitud"] span,
@@ -2875,17 +2904,32 @@ tbody tr:last-child td {
   .requests-table td[data-label="Solicitud"] strong,
   .requests-table td[data-label="Personal"] strong,
   .requests-table td[data-label="Periodo"] strong {
-    justify-self: end;
-    font-size: 0.8rem;
-    text-align: right;
+    justify-self: start;
+    font-size: 0.84rem;
+    text-align: left;
   }
 
-  .requests-table td[data-label="Solicitud"] span,
   .requests-table td[data-label="Personal"] span,
   .requests-table td[data-label="Periodo"] span,
   .requests-table td[data-label="Comprobante"] > span {
-    justify-self: end;
-    text-align: right;
+    justify-self: start;
+    text-align: left;
+  }
+
+  .requests-table td[data-label="Solicitud"] strong {
+    color: #101828;
+    font-size: 0.94rem;
+  }
+
+  .requests-table td[data-label="Solicitud"] span {
+    color: #101828;
+    font-size: 0.82rem;
+    font-weight: 850;
+    text-transform: lowercase;
+  }
+
+  .requests-table td[data-label="Solicitud"] span::before {
+    content: "por ";
   }
 
   .status-pill {
@@ -2929,6 +2973,106 @@ tbody tr:last-child td {
     border: 1px solid #e6ebf1;
     border-radius: 18px;
     background: #ffffff;
+  }
+
+  .report-table {
+    display: none !important;
+  }
+
+  .mobile-report-list {
+    display: grid;
+    gap: 12px;
+    padding-bottom: 86px;
+  }
+
+  .mobile-report-card {
+    display: grid;
+    gap: 13px;
+    padding: 16px;
+    border: 1px solid #e6ebf1;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(24, 27, 32, 0.05);
+  }
+
+  .mobile-report-person {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .mobile-report-person div {
+    min-width: 0;
+  }
+
+  .mobile-report-person strong,
+  .mobile-report-person span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-report-person strong {
+    font-size: 0.95rem;
+  }
+
+  .mobile-report-person span {
+    margin-top: 2px;
+    color: #667085;
+    font-size: 0.76rem;
+    font-weight: 750;
+  }
+
+  .mobile-report-total {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: #f7f8fa;
+  }
+
+  .mobile-report-total strong {
+    font-size: 1.45rem;
+    line-height: 1;
+  }
+
+  .mobile-report-total span {
+    color: #667085;
+    font-size: 0.82rem;
+    font-weight: 850;
+  }
+
+  .mobile-report-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .mobile-report-chips span {
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: #f2f4f7;
+    color: #475467;
+    font-size: 0.72rem;
+    font-weight: 900;
+  }
+
+  .mobile-report-chips .success {
+    background: var(--green-soft);
+    color: var(--green);
+  }
+
+  .mobile-report-chips .warning {
+    background: var(--gold-soft);
+    color: #805100;
+  }
+
+  .mobile-report-chips .danger {
+    background: var(--red-soft);
+    color: var(--red);
   }
 
   .report-view-tabs {
