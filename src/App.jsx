@@ -685,6 +685,12 @@ function App() {
       }
     }
 
+    supabase.functions.invoke('notify-new-request', {
+      body: { requestId: inserted.id }
+    }).then(({ error }) => {
+      if (error) console.warn('No se pudo enviar la notificación por correo.', error);
+    });
+
     await loadRemoteData();
     setActiveView('mine');
     return true;
