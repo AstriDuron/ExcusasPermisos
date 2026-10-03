@@ -3,6 +3,8 @@ import {
   AlertTriangle,
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   Clock3,
   Download,
@@ -144,6 +146,41 @@ function formatTime(value) {
     hour: 'numeric',
     minute: '2-digit'
   }).format(new Date(`2026-01-01T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`));
+}
+
+function toISODate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getMonthLabel(value) {
+  return new Intl.DateTimeFormat('es-HN', {
+    month: 'long',
+    year: 'numeric'
+  }).format(value);
+}
+
+function addMonths(value, amount) {
+  return new Date(value.getFullYear(), value.getMonth() + amount, 1);
+}
+
+function getCalendarCells(viewDate) {
+  const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+  const startOffset = firstDay.getDay();
+  const gridStart = new Date(firstDay);
+  gridStart.setDate(firstDay.getDate() - startOffset);
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const cellDate = new Date(gridStart);
+    cellDate.setDate(gridStart.getDate() + index);
+    return {
+      date: cellDate,
+      iso: toISODate(cellDate),
+      isCurrentMonth: cellDate.getMonth() === viewDate.getMonth()
+    };
+  });
 }
 
 function formatRequestPeriod(request) {
@@ -589,7 +626,7 @@ function App() {
     }
 
     if (payload.startDate > payload.endDate) {
-      setNotice('La fecha de inicio no puede ser mayor que la fecha final.');
+      setNotice('La fecha final no puede ser menor que la fecha de inicio.');
       return false;
     }
 
@@ -1599,6 +1636,83 @@ function Metric({ label, value, tone }) {
   );
 }
 
+function DateRangePicker({ startDate, endDate, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(() => new Date(`${startDate || `${getCurrentMonth()}-01`}T12:00:00`));
+  const [draftStart, setDraftStart] = useState(startDate);
+  const [draftEnd, setDraftEnd] = useState(endDate);
+  const cells = getCalendarCells(viewDate);
+  const weekDays = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+  const isRange = Boolean(startDate && endDate && startDate !== endDate);
+
+  useEffect(() => {
+    setDraftStart(startDate);
+    setDraftEnd(endDate);
+    if (startDate) setViewDate(new Date(`${startDate}T12:00:00`));
+  }, [startDate, endDate]);
+
+  function selectDate(iso) {
+    if (!draftStart || (draftStart && draftEnd && draftStart !== draftEnd)) {
+      setDraftStart(iso);
+      setDraftEnd(iso);
+      onChange({ startDate: iso, endDate: iso });
+      return;
+    }
+
+    const nextStart = iso < draftStart ? iso : draftStart;
+    const nextEnd = iso < draftStart ? draftStart : iso;
+    setDraftStart(nextStart);
+    setDraftEnd(nextEnd);
+    onChange({ startDate: nextStart, endDate: nextEnd });
+    setIsOpen(false);
+  }
+
+  return (
+    <div className="date-range-picker">
+      <button className="range-trigger" type="button" onClick={() => setIsOpen((current) => !current)}>
+        <CalendarDays size={17} />
+        <span>{isRange ? `${formatDate(startDate)} - ${formatDate(endDate)}` : formatDate(startDate)}</span>
+      </button>
+
+      {isOpen && (
+        <div className="calendar-popover">
+          <div className="calendar-header">
+            <button type="button" onClick={() => setViewDate((current) => addMonths(current, -1))} aria-label="Mes anterior">
+              <ChevronLeft size={17} />
+            </button>
+            <strong>{getMonthLabel(viewDate)}</strong>
+            <button type="button" onClick={() => setViewDate((current) => addMonths(current, 1))} aria-label="Mes siguiente">
+              <ChevronRight size={17} />
+            </button>
+          </div>
+          <div className="calendar-grid calendar-weekdays">
+            {weekDays.map((day, index) => (
+              <span key={`${day}-${index}`}>{day}</span>
+            ))}
+          </div>
+          <div className="calendar-grid">
+            {cells.map((cell) => {
+              const isSelected = cell.iso === startDate || cell.iso === endDate;
+              const isInRange = startDate && endDate && cell.iso > startDate && cell.iso < endDate;
+              return (
+                <button
+                  key={cell.iso}
+                  className={`${cell.isCurrentMonth ? '' : 'muted'} ${isSelected ? 'selected' : ''} ${isInRange ? 'in-range' : ''}`}
+                  type="button"
+                  onClick={() => selectDate(cell.iso)}
+                >
+                  {cell.date.getDate()}
+                </button>
+              );
+            })}
+          </div>
+          <p>Selecciona inicio y luego final.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RequestForm({ onSubmit }) {
   const [form, setForm] = useState({
     type: 'Excusa',
@@ -1695,7 +1809,7 @@ function RequestForm({ onSubmit }) {
     }
 
     if (form.startDate > form.endDate) {
-      setFormError('La fecha de inicio no puede ser mayor que la fecha final.');
+      setFormError('La fecha final no puede ser menor que la fecha de inicio.');
       return;
     }
 
@@ -1793,39 +1907,46 @@ function RequestForm({ onSubmit }) {
               </select>
             </label>
           )}
-          <div className="form-control-group date-range-field">
-            <span>Rango de fechas</span>
-            <div className="range-inputs">
-              <label>
-                <small>Desde</small>
-                <input
-                  type="date"
-                  value={form.startDate}
-                  onChange={(event) => {
-                    const nextStartDate = event.target.value;
-                    setForm((current) => ({
-                      ...current,
-                      startDate: nextStartDate,
-                      endDate: current.schedule === 'Por horas' || current.endDate < nextStartDate ? nextStartDate : current.endDate
-                    }));
-                    setFormError('');
-                  }}
-                  required
-                />
-              </label>
-              <label>
-                <small>Hasta</small>
-                <input
-                  type="date"
-                  value={form.endDate}
-                  min={form.startDate}
-                  onChange={(event) => updateField('endDate', form.schedule === 'Por horas' ? form.startDate : event.target.value)}
-                  disabled={form.schedule === 'Por horas'}
-                  required
-                />
-              </label>
+          {form.schedule === 'Por horas' ? (
+            <div className="form-control-group date-range-field single-date-field">
+              <span>Fecha</span>
+              <div className="range-inputs single">
+                <label>
+                  <small>Día</small>
+                  <input
+                    type="date"
+                    value={form.startDate}
+                    onChange={(event) => {
+                      const nextDate = event.target.value;
+                      setForm((current) => ({
+                        ...current,
+                        startDate: nextDate,
+                        endDate: nextDate
+                      }));
+                      setFormError('');
+                    }}
+                    required
+                  />
+                </label>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="form-control-group date-range-field">
+              <span>Rango de fechas</span>
+              <DateRangePicker
+                startDate={form.startDate}
+                endDate={form.endDate}
+                onChange={({ startDate, endDate }) => {
+                  setForm((current) => ({
+                    ...current,
+                    startDate,
+                    endDate
+                  }));
+                  setFormError('');
+                }}
+              />
+            </div>
+          )}
           {form.schedule === 'Por horas' && (
             <div className="form-control-group time-range-field">
               <span>Horario</span>
