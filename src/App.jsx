@@ -954,6 +954,31 @@ function getAuthErrorMessage(authError) {
   return 'No pudimos completar la acción. Revisa los datos e intenta nuevamente.';
 }
 
+function getAccessStatusMessage(status) {
+  if (status === 'pending') {
+    return 'Este correo ya tiene una solicitud pendiente. Administración debe aprobarla antes de que puedas ingresar.';
+  }
+
+  if (status === 'active') {
+    return 'Este correo ya tiene una cuenta activa. Usa iniciar sesión o restablece tu contraseña.';
+  }
+
+  if (status === 'inactive') {
+    return 'Este correo ya fue registrado, pero el acceso está inactivo. Consulta con administración.';
+  }
+
+  return '';
+}
+
+async function findAccessStatusByEmail(email) {
+  const { data, error } = await supabase.rpc('get_access_request_status', {
+    lookup_email: email
+  });
+
+  if (error) return '';
+  return data || '';
+}
+
 function AuthScreen() {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
@@ -977,9 +1002,10 @@ function AuthScreen() {
     setError('');
     setMessage('');
     setIsSubmitting(true);
+    const normalizedEmail = email.trim().toLowerCase();
 
     if (mode === 'forgot') {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
         redirectTo: appUrl
       });
       setIsSubmitting(false);
@@ -994,13 +1020,22 @@ function AuthScreen() {
     }
 
     if (mode === 'signup') {
-      const { error: authError } = await supabase.auth.signUp({
-        email,
+      const existingStatus = await findAccessStatusByEmail(normalizedEmail);
+      const existingStatusMessage = getAccessStatusMessage(existingStatus);
+
+      if (existingStatusMessage) {
+        setIsSubmitting(false);
+        setError(existingStatusMessage);
+        return;
+      }
+
+      const { data: signupData, error: authError } = await supabase.auth.signUp({
+        email: normalizedEmail,
         password,
         options: {
           emailRedirectTo: appUrl,
           data: {
-            full_name: fullName
+            full_name: fullName.trim()
           }
         }
       });
@@ -1012,11 +1047,19 @@ function AuthScreen() {
         return;
       }
 
-      setMessage('Solicitud enviada. Administración revisará tu registro y activará tu acceso.');
+      if (Array.isArray(signupData?.user?.identities) && signupData.user.identities.length === 0) {
+        setError('Este correo ya tiene una solicitud pendiente o una cuenta registrada.');
+        return;
+      }
+
+      setPassword('');
+      setFullName('');
+      setEmail('');
+      setMessage('Solicitud enviada correctamente. Administración revisará tu registro y activará tu acceso.');
       return;
     }
 
-    const { data: loginData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: loginData, error: authError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
     if (authError) {
       setIsSubmitting(false);
