@@ -1643,6 +1643,14 @@ function RequestDetailDrawer({ request, isAdmin, onClose, onReview }) {
   const [comment, setComment] = useState(request.reviewComment ?? '');
   const isApproved = request.status === 'Aprobada';
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
   async function handleReview(status) {
     await onReview(request.uuid ?? request.id, status, comment);
     onClose();
@@ -1657,8 +1665,9 @@ function RequestDetailDrawer({ request, isAdmin, onClose, onReview }) {
             <span className="request-code">{request.id}</span>
             <h3>{request.type} por {request.category.toLowerCase()}</h3>
           </div>
-          <button className="icon-action" type="button" aria-label="Cerrar detalle" onClick={onClose}>
+          <button className="icon-action drawer-close-action" type="button" aria-label="Cerrar detalle" onClick={onClose}>
             <XCircle size={22} />
+            <span>Volver</span>
           </button>
         </div>
 
@@ -2076,6 +2085,14 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) 
   const [comment, setComment] = useState('');
   const isCurrentUser = person.id === currentUserId;
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
   async function handleAccessChange(active) {
     await onUpdatePerson(person.id, { active }, comment);
     setComment('');
@@ -2091,8 +2108,9 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) 
             <span className="request-code">Personal</span>
             <h3>{person.full_name}</h3>
           </div>
-          <button className="icon-action" type="button" aria-label="Cerrar detalle" onClick={onClose}>
+          <button className="icon-action drawer-close-action" type="button" aria-label="Cerrar detalle" onClick={onClose}>
             <XCircle size={22} />
+            <span>Volver</span>
           </button>
         </div>
 

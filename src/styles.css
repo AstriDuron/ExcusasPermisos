@@ -1203,7 +1203,7 @@ tbody tr:last-child td {
 .detail-drawer-layer {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 90;
   display: flex;
   justify-content: flex-end;
 }
@@ -1225,8 +1225,22 @@ tbody tr:last-child td {
   height: 100vh;
   padding: 28px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: #ffffff;
   box-shadow: -28px 0 70px rgba(24, 27, 32, 0.22);
+}
+
+.drawer-close-action {
+  gap: 7px;
+}
+
+.drawer-close-action span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .drawer-header,
@@ -2560,13 +2574,60 @@ tbody tr:last-child td {
     font-size: 0.65rem;
   }
 
+  .detail-drawer-layer {
+    z-index: 120;
+  }
+
+  .detail-drawer-backdrop {
+    display: none;
+  }
+
   .detail-drawer {
     width: 100vw;
-    padding: 16px 14px calc(18px + env(safe-area-inset-bottom));
+    max-width: none;
+    height: 100dvh;
+    padding: 0 14px calc(18px + env(safe-area-inset-bottom));
+    gap: 14px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: none;
   }
 
   .drawer-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     align-items: center;
+    margin: 0 -14px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 8px 24px rgba(24, 27, 32, 0.08);
+  }
+
+  .drawer-header h3 {
+    font-size: 1rem;
+  }
+
+  .drawer-close-action {
+    display: inline-flex;
+    width: auto;
+    min-width: 94px;
+    height: 40px;
+    padding: 0 11px;
+    color: #171717;
+    background: var(--gold-soft);
+    border-color: #f1d27e;
+    font-weight: 900;
+  }
+
+  .drawer-close-action span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .drawer-review-box div {
