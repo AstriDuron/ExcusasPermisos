@@ -21,7 +21,6 @@ import {
   PanelLeftOpen,
   Plus,
   Search,
-  Table2,
   Upload,
   UserCheck,
   Users,
@@ -391,9 +390,9 @@ function App() {
     }
   }, [profile?.role]);
 
-  async function loadRemoteData() {
+  async function loadRemoteData({ preserveNotice = false } = {}) {
     setIsLoading(true);
-    setNotice('');
+    if (!preserveNotice) setNotice('');
 
     const { data: profileRow, error: profileError } = await supabase
       .from('profiles')
@@ -698,23 +697,28 @@ function App() {
   async function updatePerson(personId, updates, comment = '') {
     setNotice('');
 
-    if (!isSupabaseConfigured || !isAdmin) return;
+    if (!isSupabaseConfigured || !isAdmin) return false;
 
     if (personId === activeUser.id && updates.active === false) {
       setNotice('No puede inactivar su propia cuenta de administrador desde este panel.');
-      return;
+      return false;
     }
 
     const person = people.find((item) => item.id === personId);
-    const { error } = await supabase.from('profiles').update(updates).eq('id', personId);
+    const { data: updatedPerson, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', personId)
+      .select('id, active')
+      .single();
 
-    if (error) {
+    if (error || !updatedPerson) {
       setNotice('No se pudo actualizar el acceso del usuario. Revisa las políticas RLS.');
-      return;
+      return false;
     }
 
     if (Object.prototype.hasOwnProperty.call(updates, 'active')) {
-      await supabase.from('profile_events').insert({
+      const { error: eventError } = await supabase.from('profile_events').insert({
         profile_id: personId,
         actor_id: activeUser.id,
         actor_name: activeUser.name,
@@ -724,9 +728,19 @@ function App() {
         to_status: updates.active ? 'Activo' : 'Inactivo',
         comment: comment.trim()
       });
+
+      if (eventError) {
+        setNotice('El acceso se actualizó, pero no se pudo guardar el histórico.');
+      } else {
+        setNotice(updates.active ? 'Acceso aprobado correctamente.' : 'Acceso inactivado correctamente.');
+      }
     }
 
-    await loadRemoteData();
+    setPeople((currentPeople) =>
+      currentPeople.map((item) => (item.id === personId ? { ...item, ...updates } : item))
+    );
+    await loadRemoteData({ preserveNotice: true });
+    return true;
   }
 
   function exportReport() {
@@ -1879,29 +1893,7 @@ function AttachmentPreview({ attachment }) {
 }
 
 function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, onExport, onReview }) {
-  const [viewMode, setViewMode] = useState('table');
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const byPerson = rows.reduce((acc, request) => {
-    const current = acc.get(request.personId) ?? {
-      id: request.personId,
-      name: request.personName,
-      area: request.personArea || 'Institución',
-      total: 0,
-      excuses: 0,
-      permissions: 0,
-      approved: 0,
-      pending: 0,
-      rejected: 0
-    };
-    current.total += 1;
-    current.excuses += request.type === 'Excusa' ? 1 : 0;
-    current.permissions += request.type === 'Permiso' ? 1 : 0;
-    current.approved += request.status === 'Aprobada' ? 1 : 0;
-    current.pending += request.status === 'Pendiente' ? 1 : 0;
-    current.rejected += request.status === 'Rechazada' ? 1 : 0;
-    acc.set(request.personId, current);
-    return acc;
-  }, new Map());
   const [year, monthNumber] = month.split('-').map(Number);
   const daysInMonth = new Date(year, monthNumber, 0).getDate();
   const firstDay = new Date(year, monthNumber - 1, 1).getDay();
@@ -1957,138 +1949,62 @@ function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, o
         </div>
       </div>
 
-      <div className="report-view-tabs" role="group" aria-label="Vista del informe">
-        <button className={viewMode === 'table' ? 'selected' : ''} type="button" onClick={() => setViewMode('table')}>
-          <Table2 size={16} />
-          Tabla
-        </button>
-        <button className={viewMode === 'calendar' ? 'selected' : ''} type="button" onClick={() => setViewMode('calendar')}>
-          <CalendarDays size={16} />
-          Calendario
-        </button>
-      </div>
-
       <div className="report-content">
-        {viewMode === 'table' ? (
-          <div className="table-wrap">
-            <div className="mobile-report-list" aria-label="Resumen mensual por persona">
-              {[...byPerson.values()].map((row) => (
-                <article className="mobile-report-card" key={row.id}>
-                  <div className="mobile-report-person">
-                    <span className="mini-avatar">{getInitials(row.name)}</span>
-                    <div>
-                      <strong>{row.name}</strong>
-                      <span>{row.area}</span>
-                    </div>
-                  </div>
-                  <div className="mobile-report-total">
-                    <strong>{row.total}</strong>
-                    <span>{row.total === 1 ? 'solicitud' : 'solicitudes'}</span>
-                  </div>
-                  <div className="mobile-report-chips">
-                    {row.permissions > 0 && <span>{row.permissions} {row.permissions === 1 ? 'permiso' : 'permisos'}</span>}
-                    {row.excuses > 0 && <span>{row.excuses} {row.excuses === 1 ? 'excusa' : 'excusas'}</span>}
-                    {row.approved > 0 && <span className="success">{row.approved} {row.approved === 1 ? 'aprobada' : 'aprobadas'}</span>}
-                    {row.pending > 0 && <span className="warning">{row.pending} {row.pending === 1 ? 'pendiente' : 'pendientes'}</span>}
-                    {row.rejected > 0 && <span className="danger">{row.rejected} {row.rejected === 1 ? 'rechazada' : 'rechazadas'}</span>}
-                  </div>
-                </article>
-              ))}
-            </div>
-            <table className="report-table">
-              <thead>
-                <tr>
-                  <th>Personal</th>
-                  <th>Área</th>
-                  <th>Total</th>
-                  <th>Excusas</th>
-                  <th>Permisos</th>
-                  <th>Aprobadas</th>
-                  <th>Pendientes</th>
-                  <th>Rechazadas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...byPerson.values()].map((row) => (
-                  <tr key={row.id}>
-                    <td data-label="Personal">
-                      <div className="report-person">
-                        <span className="mini-avatar">{getInitials(row.name)}</span>
-                        <strong>{row.name}</strong>
-                      </div>
-                    </td>
-                    <td data-label="Área">{row.area}</td>
-                    <td data-label="Total">{row.total}</td>
-                    <td data-label="Excusas">{row.excuses}</td>
-                    <td data-label="Permisos">{row.permissions}</td>
-                    <td data-label="Aprobadas">{row.approved}</td>
-                    <td data-label="Pendientes">{row.pending}</td>
-                    <td data-label="Rechazadas">{row.rejected}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {byPerson.size === 0 && <EmptyState />}
-          </div>
-        ) : (
-          <>
-            <div className="report-calendar">
-              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
-                <span className="calendar-weekday" key={day}>{day}</span>
-              ))}
-              {calendarCells.map((cell) =>
-                cell.empty ? (
-                  <div className="calendar-day empty" key={cell.id} />
-                ) : (
-                  <div className="calendar-day" key={cell.id}>
-                    <strong>{cell.day}</strong>
-                    <div>
-                      {cell.requests.slice(0, 3).map((request) => (
-                        <button
-                          className={`calendar-event status-${request.status.toLowerCase()}`}
-                          key={request.uuid ?? request.id}
-                          type="button"
-                          onClick={() => setSelectedRequest(request)}
-                          title={`Ver detalle de ${request.id}`}
-                        >
-                          {request.id} · {request.type}
-                        </button>
-                      ))}
-                      {cell.requests.length > 3 && <small>+{cell.requests.length - 3} más</small>}
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
+        <div className="report-calendar">
+          {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
+            <span className="calendar-weekday" key={day}>{day}</span>
+          ))}
+          {calendarCells.map((cell) =>
+            cell.empty ? (
+              <div className="calendar-day empty" key={cell.id} />
+            ) : (
+              <div className="calendar-day" key={cell.id}>
+                <strong>{cell.day}</strong>
+                <div>
+                  {cell.requests.slice(0, 3).map((request) => (
+                    <button
+                      className={`calendar-event status-${request.status.toLowerCase()}`}
+                      key={request.uuid ?? request.id}
+                      type="button"
+                      onClick={() => setSelectedRequest(request)}
+                      title={`Ver detalle de ${request.id}`}
+                    >
+                      {request.id} · {request.type}
+                    </button>
+                  ))}
+                  {cell.requests.length > 3 && <small>+{cell.requests.length - 3} más</small>}
+                </div>
+              </div>
+            )
+          )}
+        </div>
 
-            <div className="mobile-calendar-list" aria-label="Solicitudes por fecha">
-              {calendarDaysWithRequests.map((cell) => (
-                <article className="mobile-calendar-day" key={cell.id}>
-                  <div className="mobile-calendar-date">
-                    <strong>{cell.day}</strong>
-                    <span>{formatDate(cell.date)}</span>
-                  </div>
-                  <div className="mobile-calendar-events">
-                    {cell.requests.map((request) => (
-                      <button
-                        className="mobile-calendar-event"
-                        key={request.uuid ?? request.id}
-                        type="button"
-                        onClick={() => setSelectedRequest(request)}
-                      >
-                        <span>{request.id}</span>
-                        <strong>{request.type} por {request.category}</strong>
-                        <small>{request.personName}</small>
-                        <StatusPill status={request.status} />
-                      </button>
-                    ))}
-                  </div>
-                </article>
-              ))}
-              {calendarDaysWithRequests.length === 0 && <EmptyState />}
-            </div>
-          </>
-        )}
+        <div className="mobile-calendar-list" aria-label="Solicitudes por fecha">
+          {calendarDaysWithRequests.map((cell) => (
+            <article className="mobile-calendar-day" key={cell.id}>
+              <div className="mobile-calendar-date">
+                <strong>{cell.day}</strong>
+                <span>{formatDate(cell.date)}</span>
+              </div>
+              <div className="mobile-calendar-events">
+                {cell.requests.map((request) => (
+                  <button
+                    className="mobile-calendar-event"
+                    key={request.uuid ?? request.id}
+                    type="button"
+                    onClick={() => setSelectedRequest(request)}
+                  >
+                    <span>{request.id}</span>
+                    <strong>{request.type} por {request.category}</strong>
+                    <small>{request.personName}</small>
+                    <StatusPill status={request.status} />
+                  </button>
+                ))}
+              </div>
+            </article>
+          ))}
+          {calendarDaysWithRequests.length === 0 && <EmptyState />}
+        </div>
       </div>
       {selectedRequest && (
         <RequestDetailDrawer
@@ -2225,6 +2141,7 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
 
 function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) {
   const [comment, setComment] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
   const isCurrentUser = person.id === currentUserId;
 
   useEffect(() => {
@@ -2236,7 +2153,12 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) 
   }, []);
 
   async function handleAccessChange(active) {
-    await onUpdatePerson(person.id, { active }, comment);
+    setIsUpdating(true);
+    const wasUpdated = await onUpdatePerson(person.id, { active }, comment);
+    setIsUpdating(false);
+
+    if (!wasUpdated) return;
+
     setComment('');
     onClose();
   }
@@ -2298,14 +2220,14 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) 
           ) : (
             <div>
               {person.active ? (
-                <button className="reject" type="button" onClick={() => handleAccessChange(false)}>
+                <button className="reject" type="button" onClick={() => handleAccessChange(false)} disabled={isUpdating}>
                   <UserX size={17} />
-                  Inactivar
+                  {isUpdating ? 'Actualizando...' : 'Inactivar'}
                 </button>
               ) : (
-                <button className="approve" type="button" onClick={() => handleAccessChange(true)}>
+                <button className="approve" type="button" onClick={() => handleAccessChange(true)} disabled={isUpdating}>
                   <UserCheck size={17} />
-                  Aprobar acceso
+                  {isUpdating ? 'Aprobando...' : 'Aprobar acceso'}
                 </button>
               )}
             </div>
