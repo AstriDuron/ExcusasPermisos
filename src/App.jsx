@@ -783,6 +783,26 @@ function App() {
       }
 
       setNotice(updates.active ? 'Acceso aprobado correctamente.' : 'Acceso inactivado correctamente.');
+    } else if (Object.prototype.hasOwnProperty.call(updates, 'role')) {
+      if (personId === activeUser.id && updates.role !== 'admin') {
+        setNotice('No puede quitarse su propio acceso de administrador.');
+        return false;
+      }
+
+      const { error } = await supabase.rpc('set_profile_role', {
+        target_profile_id: personId,
+        target_role: updates.role
+      });
+
+      if (error) {
+        const message = error.message?.toLowerCase().includes('function')
+          ? 'Falta ejecutar la migración de roles de administrador en Supabase.'
+          : 'No se pudo actualizar el rol. Verifica que tu usuario administrador esté activo.';
+        setNotice(message);
+        return false;
+      }
+
+      setNotice(updates.role === 'admin' ? 'Acceso de administrador concedido.' : 'Rol cambiado a personal.');
     } else {
       const { data: updatedPerson, error } = await supabase
         .from('profiles')
