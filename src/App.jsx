@@ -367,6 +367,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
   const [notice, setNotice] = useState('');
+  const [noticeTone, setNoticeTone] = useState('warning');
 
   useEffect(() => {
     if (!isSupabaseConfigured) return undefined;
@@ -426,7 +427,10 @@ function App() {
 
   async function loadRemoteData({ preserveNotice = false } = {}) {
     setIsLoading(true);
-    if (!preserveNotice) setNotice('');
+    if (!preserveNotice) {
+      setNotice('');
+      setNoticeTone('warning');
+    }
 
     const { data: profileRow, error: profileError } = await supabase
       .from('profiles')
@@ -766,19 +770,24 @@ function App() {
 
   async function updatePerson(personId, updates, comment = '') {
     setNotice('');
+    setNoticeTone('warning');
 
-    if (!isSupabaseConfigured || !isAdmin) return false;
+    if (!isSupabaseConfigured || !isAdmin) {
+      return { ok: false, message: 'No se pudo actualizar porque la sesión de administrador no está disponible.' };
+    }
 
     if (personId === activeUser.id && updates.active === false) {
-      setNotice('No puede inactivar su propia cuenta de administrador desde este panel.');
-      return false;
+      const message = 'No puede inactivar su propia cuenta de administrador desde este panel.';
+      setNotice(message);
+      return { ok: false, message };
     }
 
     const targetPerson = people.find((person) => person.id === personId);
 
     if (updates.active === true && !targetPerson?.email_confirmed_at) {
-      setNotice('No se puede aprobar el acceso hasta que el usuario confirme su correo.');
-      return false;
+      const message = 'No se puede aprobar el acceso hasta que el usuario confirme su correo.';
+      setNotice(message);
+      return { ok: false, message };
     }
 
     if (Object.prototype.hasOwnProperty.call(updates, 'active')) {
@@ -796,14 +805,19 @@ function App() {
             ? 'Falta ejecutar la migración de aprobación de accesos en Supabase.'
             : 'No se pudo actualizar el acceso del usuario. Verifica que tu usuario administrador esté activo.';
         setNotice(message);
-        return false;
+        return { ok: false, message };
       }
 
-      setNotice(updates.active ? 'Acceso aprobado correctamente.' : 'Acceso inactivado correctamente.');
+      setNoticeTone('success');
+      const message = updates.active ? 'Acceso aprobado correctamente.' : 'Acceso inactivado correctamente.';
+      setNotice(message);
+      await loadRemoteData({ preserveNotice: true });
+      return { ok: true, message };
     } else if (Object.prototype.hasOwnProperty.call(updates, 'role')) {
       if (personId === activeUser.id && updates.role !== 'admin') {
-        setNotice('No puede quitarse su propio acceso de administrador.');
-        return false;
+        const message = 'No puede quitarse su propio acceso de administrador.';
+        setNotice(message);
+        return { ok: false, message };
       }
 
       const { error } = await supabase.rpc('set_profile_role', {
@@ -816,10 +830,16 @@ function App() {
           ? 'Falta ejecutar la migración de roles de administrador en Supabase.'
           : 'No se pudo actualizar el rol. Verifica que tu usuario administrador esté activo.';
         setNotice(message);
-        return false;
+        return { ok: false, message };
       }
 
-      setNotice(updates.role === 'admin' ? 'Acceso de administrador concedido.' : 'Rol cambiado a personal.');
+      setNoticeTone('success');
+      const message = updates.role === 'admin'
+        ? 'Rol actualizado a administrador. Si el estado sigue en Solicitado, todavía falta confirmar correo y aprobar acceso.'
+        : 'Rol cambiado a personal.';
+      setNotice(message);
+      await loadRemoteData({ preserveNotice: true });
+      return { ok: true, message };
     } else {
       const { data: updatedPerson, error } = await supabase
         .from('profiles')
@@ -829,8 +849,9 @@ function App() {
         .single();
 
       if (error || !updatedPerson) {
-        setNotice('No se pudo actualizar el usuario. Verifica los permisos de administración.');
-        return false;
+        const message = 'No se pudo actualizar el usuario. Verifica los permisos de administración.';
+        setNotice(message);
+        return { ok: false, message };
       }
     }
 
@@ -838,22 +859,30 @@ function App() {
       currentPeople.map((item) => (item.id === personId ? { ...item, ...updates } : item))
     );
     await loadRemoteData({ preserveNotice: true });
-    return true;
+    return { ok: true, message: 'Usuario actualizado correctamente.' };
   }
 
   async function resendConfirmationEmail(person) {
     setNotice('');
+    setNoticeTone('warning');
 
-    if (!isSupabaseConfigured || !isAdmin) return false;
+    if (!isSupabaseConfigured || !isAdmin) {
+      return {
+        ok: false,
+        message: 'No se pudo reenviar porque la sesión de administrador no está disponible.'
+      };
+    }
 
     if (!person?.email) {
-      setNotice('No se puede reenviar el correo porque el usuario no tiene correo sincronizado.');
-      return false;
+      const message = 'No se puede reenviar el correo porque el usuario no tiene correo sincronizado.';
+      setNotice(message);
+      return { ok: false, message };
     }
 
     if (person.email_confirmed_at) {
-      setNotice('Este usuario ya confirmó su correo.');
-      return false;
+      const message = 'Este usuario ya confirmó su correo.';
+      setNotice(message);
+      return { ok: false, message };
     }
 
     const { error } = await supabase.auth.resend({
@@ -870,11 +899,13 @@ function App() {
         ? 'Supabase limitó el reenvío por seguridad. Espera unos minutos antes de intentar otra vez.'
         : 'No se pudo reenviar el correo de confirmación. Revisa la configuración SMTP y los logs.';
       setNotice(message);
-      return false;
+      return { ok: false, message };
     }
 
-    setNotice(`Correo de confirmación reenviado a ${person.email}.`);
-    return true;
+    const message = `Correo de confirmación reenviado a ${person.email}.`;
+    setNoticeTone('success');
+    setNotice(message);
+    return { ok: true, message };
   }
 
   function exportReport() {
@@ -1037,8 +1068,8 @@ function App() {
         </header>
 
         {notice && (
-          <div className="notice" role="status">
-            <AlertTriangle size={18} />
+          <div className={`notice ${noticeTone === 'success' ? 'success' : ''}`} role="status">
+            {noticeTone === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
             {notice}
           </div>
         )}
@@ -2241,10 +2272,28 @@ function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, o
 function PeopleManagement({ people, currentUserId, onUpdatePerson, onResendConfirmation }) {
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [expandedHistoryId, setExpandedHistoryId] = useState(null);
+  const [inlineNotice, setInlineNotice] = useState(null);
   const pendingPeople = people.filter((person) => !person.active).length;
   const activePeople = people.filter((person) => person.active).length;
   const adminPeople = people.filter((person) => person.role === 'admin').length;
   const currentSelectedPerson = selectedPerson ? people.find((person) => person.id === selectedPerson.id) ?? selectedPerson : null;
+
+  async function handlePersonUpdate(person, updates, comment = '') {
+    const result = await onUpdatePerson(person.id, updates, comment);
+    setInlineNotice({
+      ok: Boolean(result?.ok),
+      message: result?.message || 'Actualización procesada.'
+    });
+    return result;
+  }
+
+  async function handleTableResend(person) {
+    const result = await onResendConfirmation(person);
+    setInlineNotice({
+      ok: Boolean(result?.ok),
+      message: result?.message || 'Solicitud de reenvío procesada.'
+    });
+  }
 
   return (
     <section className="panel report-panel">
@@ -2262,6 +2311,12 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson, onResendConfi
       </div>
 
       <div className="report-content">
+        {inlineNotice?.message && (
+          <div className={`notice ${inlineNotice.ok ? 'success' : 'danger'}`} role="status">
+            {inlineNotice.ok ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+            {inlineNotice.message}
+          </div>
+        )}
         <div className="table-wrap">
           <table className="people-table">
             <thead>
@@ -2291,7 +2346,7 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson, onResendConfi
                     <td data-label="Rol">
                       <select
                         value={person.role}
-                        onChange={(event) => onUpdatePerson(person.id, { role: event.target.value })}
+                        onChange={(event) => handlePersonUpdate(person, { role: event.target.value })}
                         disabled={person.id === currentUserId}
                       >
                         <option value="personal">Personal</option>
@@ -2301,13 +2356,13 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson, onResendConfi
                     <td data-label="Área">
                       <input
                         defaultValue={person.department}
-                        onBlur={(event) => onUpdatePerson(person.id, { department: event.target.value.trim() || 'Institución' })}
+                        onBlur={(event) => handlePersonUpdate(person, { department: event.target.value.trim() || 'Institución' })}
                       />
                     </td>
                     <td data-label="Cargo">
                       <input
                         defaultValue={person.position}
-                        onBlur={(event) => onUpdatePerson(person.id, { position: event.target.value.trim() || 'Personal' })}
+                        onBlur={(event) => handlePersonUpdate(person, { position: event.target.value.trim() || 'Personal' })}
                       />
                     </td>
                     <td data-label="Correo">
@@ -2326,7 +2381,7 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson, onResendConfi
                           <button
                             className="icon-action"
                             type="button"
-                            onClick={() => onResendConfirmation(person)}
+                            onClick={() => handleTableResend(person)}
                             aria-label="Reenviar correo de confirmación"
                             title="Reenviar correo"
                           >
@@ -2369,7 +2424,7 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson, onResendConfi
           person={currentSelectedPerson}
           currentUserId={currentUserId}
           onClose={() => setSelectedPerson(null)}
-          onUpdatePerson={onUpdatePerson}
+          onUpdatePerson={(personId, updates, comment) => handlePersonUpdate(currentSelectedPerson, updates, comment)}
           onResendConfirmation={onResendConfirmation}
         />
       )}
@@ -2381,6 +2436,7 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson, on
   const [comment, setComment] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [drawerNotice, setDrawerNotice] = useState(null);
   const isCurrentUser = person.id === currentUserId;
   const isEmailVerified = Boolean(person.email_confirmed_at);
 
@@ -2393,20 +2449,32 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson, on
   }, []);
 
   async function handleAccessChange(active) {
+    setDrawerNotice(null);
     setIsUpdating(true);
-    const wasUpdated = await onUpdatePerson(person.id, { active }, comment);
+    const result = await onUpdatePerson(person.id, { active }, comment);
     setIsUpdating(false);
 
-    if (!wasUpdated) return;
+    if (!result?.ok) {
+      setDrawerNotice({
+        ok: false,
+        message: result?.message || 'No se pudo actualizar el acceso.'
+      });
+      return;
+    }
 
     setComment('');
     onClose();
   }
 
   async function handleResendConfirmation() {
+    setDrawerNotice(null);
     setIsResending(true);
-    await onResendConfirmation(person);
+    const result = await onResendConfirmation(person);
     setIsResending(false);
+    setDrawerNotice({
+      ok: Boolean(result?.ok),
+      message: result?.message || 'Solicitud de reenvío procesada.'
+    });
   }
 
   return (
@@ -2452,6 +2520,12 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson, on
         </div>
 
         <div className="drawer-review-box">
+          {drawerNotice?.message && (
+            <div className={`notice ${drawerNotice.ok ? 'success' : 'danger'}`} role="status">
+              {drawerNotice.ok ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+              {drawerNotice.message}
+            </div>
+          )}
           <label>
             <span>Comentario de aprobación</span>
             <textarea

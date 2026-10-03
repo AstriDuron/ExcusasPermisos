@@ -1376,6 +1376,12 @@ tbody tr:last-child td {
   gap: 10px;
 }
 
+.drawer-review-box > .notice {
+  display: flex;
+  grid-template-columns: none;
+  margin-bottom: 0;
+}
+
 .drawer-review-box button {
   display: inline-flex;
   align-items: center;
