@@ -1793,38 +1793,45 @@ function RequestForm({ onSubmit }) {
               </select>
             </label>
           )}
-          <label>
-            <span>Desde</span>
-            <input
-              type="date"
-              value={form.startDate}
-              onChange={(event) => {
-                const nextStartDate = event.target.value;
-                setForm((current) => ({
-                  ...current,
-                  startDate: nextStartDate,
-                  endDate: current.schedule === 'Por horas' || current.endDate < nextStartDate ? nextStartDate : current.endDate
-                }));
-                setFormError('');
-              }}
-              required
-            />
-          </label>
-          <label>
-            <span>Hasta</span>
-            <input
-              type="date"
-              value={form.endDate}
-              min={form.startDate}
-              onChange={(event) => updateField('endDate', form.schedule === 'Por horas' ? form.startDate : event.target.value)}
-              disabled={form.schedule === 'Por horas'}
-              required
-            />
-          </label>
-          {form.schedule === 'Por horas' && (
-            <>
+          <div className="form-control-group date-range-field">
+            <span>Rango de fechas</span>
+            <div className="range-inputs">
               <label>
-                <span>Hora inicio</span>
+                <small>Desde</small>
+                <input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(event) => {
+                    const nextStartDate = event.target.value;
+                    setForm((current) => ({
+                      ...current,
+                      startDate: nextStartDate,
+                      endDate: current.schedule === 'Por horas' || current.endDate < nextStartDate ? nextStartDate : current.endDate
+                    }));
+                    setFormError('');
+                  }}
+                  required
+                />
+              </label>
+              <label>
+                <small>Hasta</small>
+                <input
+                  type="date"
+                  value={form.endDate}
+                  min={form.startDate}
+                  onChange={(event) => updateField('endDate', form.schedule === 'Por horas' ? form.startDate : event.target.value)}
+                  disabled={form.schedule === 'Por horas'}
+                  required
+                />
+              </label>
+            </div>
+          </div>
+          {form.schedule === 'Por horas' && (
+            <div className="form-control-group time-range-field">
+              <span>Horario</span>
+              <div className="range-inputs">
+              <label>
+                <small>Inicio</small>
                 <input
                   type="time"
                   value={form.startTime}
@@ -1833,7 +1840,7 @@ function RequestForm({ onSubmit }) {
                 />
               </label>
               <label>
-                <span>Hora final</span>
+                <small>Final</small>
                 <input
                   type="time"
                   value={form.endTime}
@@ -1842,7 +1849,8 @@ function RequestForm({ onSubmit }) {
                   required
                 />
               </label>
-            </>
+              </div>
+            </div>
           )}
         </div>
 
