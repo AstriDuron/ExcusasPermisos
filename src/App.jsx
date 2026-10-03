@@ -542,6 +542,16 @@ function App() {
   async function addRequest(payload) {
     setNotice('');
 
+    if (!payload.attachment?.file) {
+      setNotice('Debe adjuntar un comprobante para enviar la solicitud.');
+      return false;
+    }
+
+    if (payload.startDate > payload.endDate) {
+      setNotice('La fecha de inicio no puede ser mayor que la fecha final.');
+      return false;
+    }
+
     if (!isSupabaseConfigured) {
       const nextRequest = {
         ...stripFileForStorage(payload),
@@ -561,7 +571,7 @@ function App() {
       };
       persistLocal([nextRequest, ...requests]);
       setActiveView('mine');
-      return;
+      return true;
     }
 
     const insertPayload = {
@@ -584,7 +594,7 @@ function App() {
 
     if (insertError) {
       setNotice('No se pudo crear la solicitud. Revisa tu sesión y las políticas RLS.');
-      return;
+      return false;
     }
 
     await supabase.from('request_events').insert({
@@ -630,6 +640,7 @@ function App() {
 
     await loadRemoteData();
     setActiveView('mine');
+    return true;
   }
 
   async function reviewRequest(id, status, reviewComment) {
@@ -1401,10 +1412,12 @@ function RequestForm({ onSubmit }) {
     attachment: null
   });
   const [fileError, setFileError] = useState('');
+  const [formError, setFormError] = useState('');
   const [isReadingFile, setIsReadingFile] = useState(false);
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
+    setFormError('');
   }
 
   function handleFile(event) {
@@ -1456,9 +1469,24 @@ function RequestForm({ onSubmit }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    setFormError('');
+
     if (!form.reason.trim()) return;
+
+    if (!form.attachment?.file) {
+      setFormError('Debe adjuntar un comprobante para enviar la solicitud.');
+      return;
+    }
+
+    if (form.startDate > form.endDate) {
+      setFormError('La fecha de inicio no puede ser mayor que la fecha final.');
+      return;
+    }
+
     const formElement = event.currentTarget;
-    await onSubmit(form);
+    const wasSubmitted = await onSubmit(form);
+    if (!wasSubmitted) return;
+
     setForm({
       type: 'Excusa',
       category: 'Médica',
@@ -1519,7 +1547,15 @@ function RequestForm({ onSubmit }) {
             <input
               type="date"
               value={form.startDate}
-              onChange={(event) => updateField('startDate', event.target.value)}
+              onChange={(event) => {
+                const nextStartDate = event.target.value;
+                setForm((current) => ({
+                  ...current,
+                  startDate: nextStartDate,
+                  endDate: current.endDate < nextStartDate ? nextStartDate : current.endDate
+                }));
+                setFormError('');
+              }}
               required
             />
           </label>
@@ -1555,12 +1591,13 @@ function RequestForm({ onSubmit }) {
               ? `${formatFileSize(form.attachment.size)} guardado en esta solicitud`
               : 'PDF o imagen. Tamaño máximo 10 MB.'}
           </span>
-          <input type="file" accept="image/*,.pdf,application/pdf" onChange={handleFile} />
+          <input type="file" accept="image/*,.pdf,application/pdf" onChange={handleFile} required />
         </label>
         {fileError && <div className="notice danger">{fileError}</div>}
+        {formError && <div className="notice danger">{formError}</div>}
 
         <div className="form-actions">
-          <button className="primary-action" type="submit" disabled={isReadingFile}>
+          <button className="primary-action" type="submit" disabled={isReadingFile || !form.attachment}>
             <FileCheck2 size={18} />
             {isReadingFile ? 'Adjuntando...' : 'Enviar solicitud'}
           </button>
