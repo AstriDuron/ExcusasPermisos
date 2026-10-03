@@ -11,6 +11,7 @@ create table if not exists public.profiles (
   department text not null default 'Institución',
   position text not null default 'Personal',
   active boolean not null default false,
+  email_confirmed_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -166,7 +167,7 @@ declare
 begin
   profile_name := coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1));
 
-  insert into public.profiles (id, email, full_name, role, department, position, active)
+  insert into public.profiles (id, email, full_name, role, department, position, active, email_confirmed_at)
   values (
     new.id,
     new.email,
@@ -174,9 +175,13 @@ begin
     'personal',
     'Institución',
     'Personal',
-    false
+    false,
+    new.email_confirmed_at
   )
-  on conflict (id) do nothing;
+  on conflict (id) do update
+  set
+    email = excluded.email,
+    email_confirmed_at = excluded.email_confirmed_at;
 
   if not exists (
     select 1
@@ -201,6 +206,41 @@ begin
       'Registro solicitado',
       'Solicitado',
       'Cuenta registrada por el usuario.'
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
+create or replace function public.sync_profile_email_verification()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  profile_name text;
+begin
+  profile_name := coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1));
+
+  update public.profiles
+  set
+    email = new.email,
+    email_confirmed_at = new.email_confirmed_at
+  where id = new.id;
+
+  if not found then
+    insert into public.profiles (id, email, full_name, role, department, position, active, email_confirmed_at)
+    values (
+      new.id,
+      new.email,
+      profile_name,
+      'personal',
+      'Institución',
+      'Personal',
+      false,
+      new.email_confirmed_at
     );
   end if;
 
@@ -270,6 +310,10 @@ begin
 
   if target_profile.id is null then
     raise exception 'Perfil no encontrado.';
+  end if;
+
+  if target_active = true and target_profile.email_confirmed_at is null then
+    raise exception 'El usuario debe confirmar su correo antes de aprobar el acceso.';
   end if;
 
   update public.profiles
@@ -382,6 +426,12 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row
 execute function public.handle_new_user();
+
+drop trigger if exists on_auth_user_email_verified on auth.users;
+create trigger on_auth_user_email_verified
+after update of email, email_confirmed_at on auth.users
+for each row
+execute function public.sync_profile_email_verification();
 
 alter table public.profiles enable row level security;
 alter table public.requests enable row level security;

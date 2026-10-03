@@ -491,13 +491,13 @@ function App() {
     if (profileRow.role === 'admin') {
       let { data: peopleRows, error: peopleError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, role, department, position, active, created_at')
+        .select('id, email, full_name, role, department, position, active, email_confirmed_at, created_at')
         .order('created_at', { ascending: false });
 
       if (peopleError) {
         const fallback = await supabase
           .from('profiles')
-          .select('id, full_name, role, department, position, active, created_at')
+          .select('id, email, full_name, role, department, position, active, created_at')
           .order('created_at', { ascending: false });
         peopleRows = fallback.data;
         peopleError = fallback.error;
@@ -773,6 +773,13 @@ function App() {
       return false;
     }
 
+    const targetPerson = people.find((person) => person.id === personId);
+
+    if (updates.active === true && !targetPerson?.email_confirmed_at) {
+      setNotice('No se puede aprobar el acceso hasta que el usuario confirme su correo.');
+      return false;
+    }
+
     if (Object.prototype.hasOwnProperty.call(updates, 'active')) {
       const { error } = await supabase.rpc('set_profile_access', {
         target_profile_id: personId,
@@ -781,9 +788,12 @@ function App() {
       });
 
       if (error) {
-        const message = error.message?.toLowerCase().includes('function')
-          ? 'Falta ejecutar la migración de aprobación de accesos en Supabase.'
-          : 'No se pudo actualizar el acceso del usuario. Verifica que tu usuario administrador esté activo.';
+        const normalizedMessage = error.message?.toLowerCase() ?? '';
+        const message = normalizedMessage.includes('correo') || normalizedMessage.includes('confirm')
+          ? 'No se puede aprobar el acceso hasta que el usuario confirme su correo.'
+          : normalizedMessage.includes('function')
+            ? 'Falta ejecutar la migración de aprobación de accesos en Supabase.'
+            : 'No se pudo actualizar el acceso del usuario. Verifica que tu usuario administrador esté activo.';
         setNotice(message);
         return false;
       }
@@ -827,35 +837,6 @@ function App() {
       currentPeople.map((item) => (item.id === personId ? { ...item, ...updates } : item))
     );
     await loadRemoteData({ preserveNotice: true });
-    return true;
-  }
-
-  async function updatePersonPassword(personId, password) {
-    setNotice('');
-
-    if (!isSupabaseConfigured || !isAdmin) return false;
-
-    if (!password || password.length < 8) {
-      setNotice('La nueva clave debe tener al menos 8 caracteres.');
-      return false;
-    }
-
-    const { error } = await supabase.functions.invoke('admin-set-password', {
-      body: {
-        userId: personId,
-        password
-      }
-    });
-
-    if (error) {
-      const message = error.message?.toLowerCase().includes('not found')
-        ? 'Falta desplegar la función admin-set-password en Supabase.'
-        : 'No se pudo actualizar la clave. Verifica la función de Supabase y los permisos de administrador.';
-      setNotice(message);
-      return false;
-    }
-
-    setNotice('Clave actualizada correctamente.');
     return true;
   }
 
@@ -1054,7 +1035,6 @@ function App() {
             people={people}
             currentUserId={activeUser.id}
             onUpdatePerson={updatePerson}
-            onUpdatePassword={updatePersonPassword}
           />
         )}
       </section>
@@ -2220,7 +2200,7 @@ function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, o
   );
 }
 
-function PeopleManagement({ people, currentUserId, onUpdatePerson, onUpdatePassword }) {
+function PeopleManagement({ people, currentUserId, onUpdatePerson }) {
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [expandedHistoryId, setExpandedHistoryId] = useState(null);
   const pendingPeople = people.filter((person) => !person.active).length;
@@ -2252,6 +2232,7 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson, onUpdatePassw
                 <th>Rol</th>
                 <th>Área</th>
                 <th>Cargo</th>
+                <th>Correo</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -2291,6 +2272,11 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson, onUpdatePassw
                         onBlur={(event) => onUpdatePerson(person.id, { position: event.target.value.trim() || 'Personal' })}
                       />
                     </td>
+                    <td data-label="Correo">
+                      <span className={`access-pill ${person.email_confirmed_at ? 'verified' : 'unverified'}`}>
+                        {person.email_confirmed_at ? 'Verificado' : 'Pendiente'}
+                      </span>
+                    </td>
                     <td data-label="Estado">
                       <span className={`access-pill ${person.active ? 'active' : 'pending'}`}>
                         {person.active ? 'Activo' : 'Solicitado'}
@@ -2316,7 +2302,7 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson, onUpdatePassw
                   </tr>
                   {expandedHistoryId === person.id && (
                     <tr className="history-expand-row">
-                      <td colSpan="6">
+                      <td colSpan="7">
                         <RequestHistory events={buildProfileHistory(person)} compact />
                       </td>
                     </tr>
@@ -2335,20 +2321,17 @@ function PeopleManagement({ people, currentUserId, onUpdatePerson, onUpdatePassw
           currentUserId={currentUserId}
           onClose={() => setSelectedPerson(null)}
           onUpdatePerson={onUpdatePerson}
-          onUpdatePassword={onUpdatePassword}
         />
       )}
     </section>
   );
 }
 
-function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson, onUpdatePassword }) {
+function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson }) {
   const [comment, setComment] = useState('');
-  const [temporaryPassword, setTemporaryPassword] = useState('');
-  const [passwordMessage, setPasswordMessage] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const isCurrentUser = person.id === currentUserId;
+  const isEmailVerified = Boolean(person.email_confirmed_at);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -2367,25 +2350,6 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson, on
 
     setComment('');
     onClose();
-  }
-
-  async function handlePasswordChange(event) {
-    event.preventDefault();
-    setPasswordMessage('');
-
-    if (temporaryPassword.length < 8) {
-      setPasswordMessage('La nueva clave debe tener al menos 8 caracteres.');
-      return;
-    }
-
-    setIsUpdatingPassword(true);
-    const wasUpdated = await onUpdatePassword(person.id, temporaryPassword);
-    setIsUpdatingPassword(false);
-
-    if (!wasUpdated) return;
-
-    setTemporaryPassword('');
-    setPasswordMessage('Clave actualizada correctamente.');
   }
 
   return (
@@ -2413,6 +2377,10 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson, on
             <strong>{person.email || 'Correo pendiente de sincronizar'}</strong>
           </div>
           <div>
+            <span>Verificación</span>
+            <strong>{isEmailVerified ? 'Correo confirmado' : 'Correo sin confirmar'}</strong>
+          </div>
+          <div>
             <span>Rol</span>
             <strong>{person.role === 'admin' ? 'Administrador' : 'Personal'}</strong>
           </div>
@@ -2425,34 +2393,6 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson, on
             <strong>{person.position}</strong>
           </div>
         </div>
-
-        {!isCurrentUser && (
-          <form className="drawer-review-box admin-password-box" onSubmit={handlePasswordChange}>
-            <label>
-              <span>Nueva clave temporal</span>
-              <div className="input-icon password-input">
-                <LockKeyhole size={17} />
-                <input
-                  type="text"
-                  minLength="8"
-                  value={temporaryPassword}
-                  onChange={(event) => {
-                    setTemporaryPassword(event.target.value);
-                    setPasswordMessage('');
-                  }}
-                  placeholder="Mínimo 8 caracteres"
-                  autoComplete="new-password"
-                  required
-                />
-              </div>
-            </label>
-            {passwordMessage && <div className="notice success">{passwordMessage}</div>}
-            <button className="secondary-action table-action" type="submit" disabled={isUpdatingPassword}>
-              <LockKeyhole size={17} />
-              {isUpdatingPassword ? 'Actualizando...' : 'Cambiar clave'}
-            </button>
-          </form>
-        )}
 
         <div className="drawer-review-box">
           <label>
@@ -2469,6 +2409,11 @@ function PersonDetailDrawer({ person, currentUserId, onClose, onUpdatePerson, on
             <div className="locked-review-note">
               <AlertTriangle size={18} />
               <span>No puede modificar el acceso de su propia cuenta desde este panel.</span>
+            </div>
+          ) : !isEmailVerified && !person.active ? (
+            <div className="locked-review-note">
+              <AlertTriangle size={18} />
+              <span>Este usuario debe confirmar su correo antes de aprobar el acceso.</span>
             </div>
           ) : (
             <div>

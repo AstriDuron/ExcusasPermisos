@@ -1022,7 +1022,7 @@ textarea {
 }
 
 .people-table {
-  min-width: 940px;
+  min-width: 1040px;
 }
 
 .people-table input,
@@ -1589,6 +1589,16 @@ tbody tr:last-child td {
 }
 
 .access-pill.pending {
+  color: #805100;
+  background: var(--gold-soft);
+}
+
+.access-pill.verified {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.access-pill.unverified {
   color: #805100;
   background: var(--gold-soft);
 }
