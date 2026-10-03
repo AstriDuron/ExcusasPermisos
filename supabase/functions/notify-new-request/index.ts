@@ -32,6 +32,14 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", '&#039;');
 }
 
+function parseEmailList(value?: string | null) {
+  return String(value ?? '')
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean)
+    .map((email) => ({ email, name: 'Administrador' }));
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -50,10 +58,11 @@ Deno.serve(async (request) => {
   const brevoApiKey = Deno.env.get('BREVO_API_KEY');
   const senderEmail = Deno.env.get('BREVO_SENDER_EMAIL');
   const senderName = Deno.env.get('BREVO_SENDER_NAME') || 'Instituto Técnico Regional Minas de Oro';
-  const recipientEmail = Deno.env.get('ADMIN_NOTIFICATION_EMAIL') || 'nahum.duron@educatrachos.edu.hn';
+  const recipientEmails = parseEmailList(Deno.env.get('ADMIN_NOTIFICATION_EMAIL') || 'nahum.duron@educatrachos.edu.hn');
+  const ccEmails = parseEmailList(Deno.env.get('ADMIN_NOTIFICATION_CC'));
   const appUrl = Deno.env.get('APP_URL') || 'https://excusas-permisos-minas-dusky.vercel.app';
 
-  if (!supabaseUrl || !anonKey || !serviceRoleKey || !brevoApiKey || !senderEmail) {
+  if (!supabaseUrl || !anonKey || !serviceRoleKey || !brevoApiKey || !senderEmail || recipientEmails.length === 0) {
     return new Response(JSON.stringify({ error: 'Missing notification secrets' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -172,7 +181,8 @@ Deno.serve(async (request) => {
     },
     body: JSON.stringify({
       sender: { name: senderName, email: senderEmail },
-      to: [{ email: recipientEmail, name: 'Administrador' }],
+      to: recipientEmails,
+      cc: ccEmails.length > 0 ? ccEmails : undefined,
       replyTo: personEmail ? { email: personEmail, name: personName } : undefined,
       subject,
       htmlContent: html,
