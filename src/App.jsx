@@ -101,6 +101,7 @@ const seedRequests = [
 
 const categories = ['Médica', 'Personal', 'Institucional', 'Emergencia familiar', 'Académica', 'Otro'];
 const schedules = ['Jornada completa', 'Mañana', 'Tarde', 'Por horas'];
+const daySchedules = schedules.filter((schedule) => schedule !== 'Por horas');
 const statuses = ['Pendiente', 'Aprobada', 'Rechazada'];
 
 const typeToDb = { Excusa: 'excusa', Permiso: 'permiso' };
@@ -1763,14 +1764,35 @@ function RequestForm({ onSubmit }) {
               ))}
             </select>
           </label>
-          <label>
-            <span>Jornada</span>
-            <select value={form.schedule} onChange={(event) => updateField('schedule', event.target.value)}>
-              {schedules.map((schedule) => (
-                <option key={schedule}>{schedule}</option>
-              ))}
-            </select>
-          </label>
+          <div className="form-control-group">
+            <span>Tipo de tiempo</span>
+            <div className="segmented compact" role="group" aria-label="Tipo de tiempo">
+              <button
+                className={form.schedule !== 'Por horas' ? 'selected' : ''}
+                type="button"
+                onClick={() => updateField('schedule', 'Jornada completa')}
+              >
+                Diario
+              </button>
+              <button
+                className={form.schedule === 'Por horas' ? 'selected' : ''}
+                type="button"
+                onClick={() => updateField('schedule', 'Por horas')}
+              >
+                Por horas
+              </button>
+            </div>
+          </div>
+          {form.schedule !== 'Por horas' && (
+            <label>
+              <span>Jornada</span>
+              <select value={form.schedule} onChange={(event) => updateField('schedule', event.target.value)}>
+                {daySchedules.map((schedule) => (
+                  <option key={schedule}>{schedule}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             <span>Desde</span>
             <input

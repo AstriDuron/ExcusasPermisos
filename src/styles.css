@@ -636,6 +636,11 @@ td span {
   width: 100%;
 }
 
+.segmented.compact {
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .segmented button {
   min-height: 38px;
   border: 0;
@@ -657,9 +662,17 @@ td span {
 }
 
 label,
-.wide-field {
+.wide-field,
+.form-control-group {
   display: grid;
   gap: 8px;
+}
+
+.form-control-group > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 input,
