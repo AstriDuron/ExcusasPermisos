@@ -7,6 +7,7 @@ import {
   Clock3,
   Download,
   Eye,
+  EyeOff,
   FileCheck2,
   Filter,
   History,
@@ -913,6 +914,7 @@ function App() {
             setStatusFilter={setReportStatusFilter}
             rows={reportRows}
             onExport={exportReport}
+            onReview={reviewRequest}
           />
         )}
         {!isLoading && activeView === 'people' && isAdmin && (
@@ -977,6 +979,33 @@ async function findAccessStatusByEmail(email) {
 
   if (error) return '';
   return data || '';
+}
+
+function PasswordInput({ value, onChange, autoComplete }) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div className="input-icon password-input">
+      <LockKeyhole size={17} />
+      <input
+        type={isVisible ? 'text' : 'password'}
+        minLength="8"
+        value={value}
+        onChange={onChange}
+        autoComplete={autoComplete}
+        required
+      />
+      <button
+        className="password-toggle"
+        type="button"
+        onClick={() => setIsVisible((current) => !current)}
+        aria-label={isVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        title={isVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+      >
+        {isVisible ? <EyeOff size={17} /> : <Eye size={17} />}
+      </button>
+    </div>
+  );
 }
 
 function AuthScreen() {
@@ -1143,17 +1172,11 @@ function AuthScreen() {
           {mode !== 'forgot' && (
             <label>
               <span>Contraseña</span>
-              <div className="input-icon">
-                <LockKeyhole size={17} />
-                <input
-                  type="password"
-                  minLength="8"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  required
-                />
-              </div>
+              <PasswordInput
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              />
             </label>
           )}
 
@@ -1238,31 +1261,19 @@ function PasswordRecoveryScreen({ onDone }) {
         <form className="request-form" onSubmit={handlePasswordUpdate}>
           <label>
             <span>Nueva contraseña</span>
-            <div className="input-icon">
-              <LockKeyhole size={17} />
-              <input
-                type="password"
-                minLength="8"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="new-password"
-                required
-              />
-            </div>
+            <PasswordInput
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="new-password"
+            />
           </label>
           <label>
             <span>Confirmar contraseña</span>
-            <div className="input-icon">
-              <LockKeyhole size={17} />
-              <input
-                type="password"
-                minLength="8"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                autoComplete="new-password"
-                required
-              />
-            </div>
+            <PasswordInput
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              autoComplete="new-password"
+            />
           </label>
 
           {error && <div className="notice danger">{error}</div>}
@@ -1867,8 +1878,9 @@ function AttachmentPreview({ attachment }) {
   );
 }
 
-function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, onExport }) {
+function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, onExport, onReview }) {
   const [viewMode, setViewMode] = useState('table');
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const byPerson = rows.reduce((acc, request) => {
     const current = acc.get(request.personId) ?? {
       id: request.personId,
@@ -1902,10 +1914,11 @@ function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, o
         id: date,
         day,
         date,
-        requests: rows.filter((request) => request.startDate === date)
+        requests: rows.filter((request) => request.startDate <= date && request.endDate >= date)
       };
     })
   ];
+  const calendarDaysWithRequests = calendarCells.filter((cell) => !cell.empty && cell.requests.length > 0);
 
   return (
     <section className="panel report-panel">
@@ -2018,30 +2031,73 @@ function MonthlyReport({ month, setMonth, statusFilter, setStatusFilter, rows, o
             {byPerson.size === 0 && <EmptyState />}
           </div>
         ) : (
-          <div className="report-calendar">
-            {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
-              <span className="calendar-weekday" key={day}>{day}</span>
-            ))}
-            {calendarCells.map((cell) =>
-              cell.empty ? (
-                <div className="calendar-day empty" key={cell.id} />
-              ) : (
-                <div className="calendar-day" key={cell.id}>
-                  <strong>{cell.day}</strong>
-                  <div>
-                    {cell.requests.slice(0, 3).map((request) => (
-                      <span className={`calendar-event status-${request.status.toLowerCase()}`} key={request.uuid ?? request.id}>
-                        {request.id} · {request.type}
-                      </span>
-                    ))}
-                    {cell.requests.length > 3 && <small>+{cell.requests.length - 3} más</small>}
+          <>
+            <div className="report-calendar">
+              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
+                <span className="calendar-weekday" key={day}>{day}</span>
+              ))}
+              {calendarCells.map((cell) =>
+                cell.empty ? (
+                  <div className="calendar-day empty" key={cell.id} />
+                ) : (
+                  <div className="calendar-day" key={cell.id}>
+                    <strong>{cell.day}</strong>
+                    <div>
+                      {cell.requests.slice(0, 3).map((request) => (
+                        <button
+                          className={`calendar-event status-${request.status.toLowerCase()}`}
+                          key={request.uuid ?? request.id}
+                          type="button"
+                          onClick={() => setSelectedRequest(request)}
+                          title={`Ver detalle de ${request.id}`}
+                        >
+                          {request.id} · {request.type}
+                        </button>
+                      ))}
+                      {cell.requests.length > 3 && <small>+{cell.requests.length - 3} más</small>}
+                    </div>
                   </div>
-                </div>
-              )
-            )}
-          </div>
+                )
+              )}
+            </div>
+
+            <div className="mobile-calendar-list" aria-label="Solicitudes por fecha">
+              {calendarDaysWithRequests.map((cell) => (
+                <article className="mobile-calendar-day" key={cell.id}>
+                  <div className="mobile-calendar-date">
+                    <strong>{cell.day}</strong>
+                    <span>{formatDate(cell.date)}</span>
+                  </div>
+                  <div className="mobile-calendar-events">
+                    {cell.requests.map((request) => (
+                      <button
+                        className="mobile-calendar-event"
+                        key={request.uuid ?? request.id}
+                        type="button"
+                        onClick={() => setSelectedRequest(request)}
+                      >
+                        <span>{request.id}</span>
+                        <strong>{request.type} por {request.category}</strong>
+                        <small>{request.personName}</small>
+                        <StatusPill status={request.status} />
+                      </button>
+                    ))}
+                  </div>
+                </article>
+              ))}
+              {calendarDaysWithRequests.length === 0 && <EmptyState />}
+            </div>
+          </>
         )}
       </div>
+      {selectedRequest && (
+        <RequestDetailDrawer
+          request={selectedRequest}
+          isAdmin
+          onClose={() => setSelectedRequest(null)}
+          onReview={onReview}
+        />
+      )}
     </section>
   );
 }
