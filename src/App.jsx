@@ -1144,7 +1144,7 @@ function getAuthErrorMessage(authError) {
 
 function getAccessStatusMessage(status) {
   if (status === 'pending') {
-    return 'Este correo ya tiene una solicitud pendiente. Aún no tiene permiso para ingresar hasta que administración lo apruebe.';
+    return 'Este correo ya tiene una solicitud pendiente. Administración aún no ha aprobado el acceso.';
   }
 
   if (status === 'active') {
@@ -1270,7 +1270,7 @@ function AuthScreen() {
       setPassword('');
       setFullName('');
       setEmail('');
-      setMessage('Solicitud enviada correctamente. Revisa tu correo para confirmar la cuenta. Luego administración aprobará tu acceso.');
+      setMessage('Solicitud enviada correctamente. Revisa tu correo para confirmar la cuenta. Luego administración revisará y aprobará tu acceso.');
       return;
     }
 
@@ -1298,7 +1298,7 @@ function AuthScreen() {
     if (!profileRow.active) {
       await supabase.auth.signOut();
       setIsSubmitting(false);
-      setError('Aún no tienes permiso para ingresar. Administración debe aprobar tu acceso primero.');
+      setError('Tu solicitud de acceso aún no ha sido aprobada por administración.');
       return;
     }
 
