@@ -26,6 +26,7 @@ create table if not exists public.requests (
   start_time time,
   end_time time,
   schedule text not null,
+  class_hours numeric(4, 1) not null default 1 check (class_hours > 0 and class_hours <= 12),
   reason text not null check (char_length(reason) between 3 and 1200),
   status text not null default 'pendiente' check (status in ('pendiente', 'aprobada', 'rechazada')),
   review_comment text not null default '',

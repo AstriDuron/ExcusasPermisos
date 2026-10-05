@@ -54,7 +54,8 @@ const seedRequests = [
     category: 'Médica',
     startDate: '2026-10-01',
     endDate: '2026-10-01',
-    schedule: 'Jornada completa',
+    schedule: 'Matutina',
+    classHours: 4,
     reason: 'Consulta médica programada.',
     status: 'Pendiente',
     createdAt: '2026-10-01',
@@ -75,7 +76,8 @@ const seedRequests = [
     category: 'Personal',
     startDate: '2026-09-28',
     endDate: '2026-09-28',
-    schedule: 'Mañana',
+    schedule: 'Matutina',
+    classHours: 2,
     reason: 'Trámite bancario impostergable.',
     status: 'Aprobada',
     createdAt: '2026-09-25',
@@ -91,7 +93,8 @@ const seedRequests = [
     category: 'Emergencia familiar',
     startDate: '2026-09-18',
     endDate: '2026-09-18',
-    schedule: 'Tarde',
+    schedule: 'Vespertina',
+    classHours: 3,
     reason: 'Atención a emergencia familiar.',
     status: 'Rechazada',
     createdAt: '2026-09-18',
@@ -102,8 +105,7 @@ const seedRequests = [
 ];
 
 const categories = ['Médica', 'Personal', 'Institucional', 'Emergencia familiar', 'Académica', 'Otro'];
-const schedules = ['Jornada completa', 'Mañana', 'Tarde', 'Por horas'];
-const daySchedules = schedules.filter((schedule) => schedule !== 'Por horas');
+const schedules = ['Matutina', 'Vespertina'];
 const statuses = ['Pendiente', 'Aprobada', 'Rechazada'];
 
 const typeToDb = { Excusa: 'excusa', Permiso: 'permiso' };
@@ -184,10 +186,6 @@ function getCalendarCells(viewDate) {
 }
 
 function formatRequestPeriod(request) {
-  if (request.schedule === 'Por horas' && request.startTime && request.endTime) {
-    return `${formatDate(request.startDate)}, ${formatTime(request.startTime)} - ${formatTime(request.endTime)}`;
-  }
-
   if (request.startDate !== request.endDate) {
     return `${formatDate(request.startDate)} - ${formatDate(request.endDate)}`;
   }
@@ -196,7 +194,6 @@ function formatRequestPeriod(request) {
 }
 
 function formatRequestPeriodHint(request) {
-  if (request.schedule === 'Por horas' && request.startTime && request.endTime) return 'Por horas';
   return request.startDate !== request.endDate ? 'Rango de fechas' : 'Un día';
 }
 
@@ -365,6 +362,7 @@ function mapRemoteRequest(row) {
     startTime: row.start_time?.slice(0, 5) ?? '',
     endTime: row.end_time?.slice(0, 5) ?? '',
     schedule: row.schedule,
+    classHours: row.class_hours ?? '',
     reason: row.reason,
     status: statusFromDb[row.status] ?? 'Pendiente',
     createdAt: row.created_at?.slice(0, 10) ?? '',
@@ -499,7 +497,7 @@ function App() {
     setAuthErrorNotice('');
 
     const requestSelect =
-      'id, request_code, user_id, type, category, start_date, end_date, start_time, end_time, schedule, reason, status, review_comment, reviewed_by, created_at, profiles:user_id(full_name, department, position), request_files(id, file_name, file_type, file_size, file_path), request_events(id, action, title, actor_id, actor_name, from_status, to_status, comment, created_at)';
+      'id, request_code, user_id, type, category, start_date, end_date, start_time, end_time, schedule, class_hours, reason, status, review_comment, reviewed_by, created_at, profiles:user_id(full_name, department, position), request_files(id, file_name, file_type, file_size, file_path), request_events(id, action, title, actor_id, actor_name, from_status, to_status, comment, created_at)';
     const fallbackRequestSelect =
       'id, request_code, user_id, type, category, start_date, end_date, start_time, end_time, schedule, reason, status, review_comment, reviewed_by, created_at, profiles:user_id(full_name, department, position), request_files(id, file_name, file_type, file_size, file_path)';
 
@@ -630,21 +628,10 @@ function App() {
       return false;
     }
 
-    if (payload.schedule === 'Por horas') {
-      if (!payload.startTime || !payload.endTime) {
-        setNotice('Debe indicar hora de inicio y hora final.');
-        return false;
-      }
-
-      if (payload.startDate !== payload.endDate) {
-        setNotice('Las solicitudes por horas deben ser para un solo día.');
-        return false;
-      }
-
-      if (payload.startTime >= payload.endTime) {
-        setNotice('La hora de inicio debe ser menor que la hora final.');
-        return false;
-      }
+    const classHours = Number(payload.classHours);
+    if (!Number.isFinite(classHours) || classHours <= 0 || classHours > 12) {
+      setNotice('Debe indicar un número de horas clase válido.');
+      return false;
     }
 
     if (!isSupabaseConfigured) {
@@ -676,9 +663,10 @@ function App() {
       category: payload.category,
       start_date: payload.startDate,
       end_date: payload.endDate,
-      start_time: payload.schedule === 'Por horas' ? payload.startTime : null,
-      end_time: payload.schedule === 'Por horas' ? payload.endTime : null,
+      start_time: null,
+      end_time: null,
       schedule: payload.schedule,
+      class_hours: classHours,
       reason: payload.reason.trim(),
       status: 'pendiente'
     };
@@ -964,7 +952,7 @@ function App() {
 
   function exportReport() {
     const rows = [
-      ['ID', 'Personal', 'Tipo', 'Categoria', 'Inicio', 'Fin', 'Hora inicio', 'Hora fin', 'Jornada', 'Estado', 'Comprobante', 'Comentario'],
+      ['ID', 'Personal', 'Tipo', 'Categoria', 'Inicio', 'Fin', 'Jornada', 'Horas clase', 'Estado', 'Comprobante', 'Comentario'],
       ...reportRows.map((request) => [
         request.id,
         request.personName,
@@ -972,9 +960,8 @@ function App() {
         request.category,
         request.startDate,
         request.endDate,
-        request.startTime || '',
-        request.endTime || '',
         request.schedule,
+        request.classHours || '',
         request.status,
         request.attachment?.name ?? '',
         request.reviewComment
@@ -1721,7 +1708,8 @@ function RequestForm({ onSubmit }) {
     endDate: new Date().toISOString().slice(0, 10),
     startTime: '',
     endTime: '',
-    schedule: 'Jornada completa',
+    schedule: 'Matutina',
+    classHours: '',
     reason: '',
     attachment: null
   });
@@ -1731,20 +1719,6 @@ function RequestForm({ onSubmit }) {
 
   function updateField(field, value) {
     setForm((current) => {
-      if (field === 'schedule' && value === 'Por horas') {
-        return {
-          ...current,
-          schedule: value,
-          endDate: current.startDate,
-          startTime: current.startTime || '08:00',
-          endTime: current.endTime || '09:00'
-        };
-      }
-
-      if (field === 'schedule') {
-        return { ...current, schedule: value, startTime: '', endTime: '' };
-      }
-
       return { ...current, [field]: value };
     });
     setFormError('');
@@ -1813,16 +1787,10 @@ function RequestForm({ onSubmit }) {
       return;
     }
 
-    if (form.schedule === 'Por horas') {
-      if (!form.startTime || !form.endTime) {
-        setFormError('Debe indicar hora de inicio y hora final.');
-        return;
-      }
-
-      if (form.startTime >= form.endTime) {
-        setFormError('La hora de inicio debe ser menor que la hora final.');
-        return;
-      }
+    const classHours = Number(form.classHours);
+    if (!Number.isFinite(classHours) || classHours <= 0 || classHours > 12) {
+      setFormError('Debe indicar un número de horas clase válido.');
+      return;
     }
 
     const formElement = event.currentTarget;
@@ -1836,7 +1804,8 @@ function RequestForm({ onSubmit }) {
       endDate: new Date().toISOString().slice(0, 10),
       startTime: '',
       endTime: '',
-      schedule: 'Jornada completa',
+      schedule: 'Matutina',
+      classHours: '',
       reason: '',
       attachment: null
     });
@@ -1878,101 +1847,59 @@ function RequestForm({ onSubmit }) {
               ))}
             </select>
           </label>
-          <div className="form-control-group">
-            <span>Tipo de tiempo</span>
-            <div className="segmented compact" role="group" aria-label="Tipo de tiempo">
-              <button
-                className={form.schedule !== 'Por horas' ? 'selected' : ''}
-                type="button"
-                onClick={() => updateField('schedule', 'Jornada completa')}
-              >
-                Diario
-              </button>
-              <button
-                className={form.schedule === 'Por horas' ? 'selected' : ''}
-                type="button"
-                onClick={() => updateField('schedule', 'Por horas')}
-              >
-                Por horas
-              </button>
-            </div>
-          </div>
-          {form.schedule !== 'Por horas' && (
-            <label>
-              <span>Jornada</span>
-              <select value={form.schedule} onChange={(event) => updateField('schedule', event.target.value)}>
-                {daySchedules.map((schedule) => (
-                  <option key={schedule}>{schedule}</option>
-                ))}
-              </select>
-            </label>
-          )}
-          {form.schedule === 'Por horas' ? (
-            <div className="form-control-group date-range-field single-date-field">
-              <span>Fecha</span>
-              <div className="range-inputs single">
-                <label>
-                  <small>Día</small>
-                  <input
-                    type="date"
-                    value={form.startDate}
-                    onChange={(event) => {
-                      const nextDate = event.target.value;
-                      setForm((current) => ({
-                        ...current,
-                        startDate: nextDate,
-                        endDate: nextDate
-                      }));
-                      setFormError('');
-                    }}
-                    required
-                  />
-                </label>
-              </div>
-            </div>
-          ) : (
-            <div className="form-control-group date-range-field">
-              <span>Rango de fechas</span>
-              <DateRangePicker
-                startDate={form.startDate}
-                endDate={form.endDate}
-                onChange={({ startDate, endDate }) => {
-                  setForm((current) => ({
-                    ...current,
-                    startDate,
-                    endDate
-                  }));
-                  setFormError('');
-                }}
-              />
-            </div>
-          )}
-          {form.schedule === 'Por horas' && (
-            <div className="form-control-group time-range-field">
-              <span>Horario</span>
-              <div className="range-inputs">
+          <label>
+            <span>Jornada</span>
+            <select value={form.schedule} onChange={(event) => updateField('schedule', event.target.value)}>
+              {schedules.map((schedule) => (
+                <option key={schedule}>{schedule}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Número de horas clase</span>
+            <input
+              type="number"
+              min="0.5"
+              max="12"
+              step="0.5"
+              value={form.classHours}
+              onChange={(event) => updateField('classHours', event.target.value)}
+              placeholder="Ej. 2"
+              required
+            />
+          </label>
+          <div className="form-control-group date-range-field">
+            <span>Fechas</span>
+            <div className="range-inputs">
               <label>
-                <small>Inicio</small>
+                <small>Inicial</small>
                 <input
-                  type="time"
-                  value={form.startTime}
-                  onChange={(event) => updateField('startTime', event.target.value)}
+                  type="date"
+                  value={form.startDate}
+                  onChange={(event) => {
+                    const nextStartDate = event.target.value;
+                    setForm((current) => ({
+                      ...current,
+                      startDate: nextStartDate,
+                      endDate: current.endDate < nextStartDate ? nextStartDate : current.endDate
+                    }));
+                    setFormError('');
+                  }}
                   required
                 />
               </label>
               <label>
                 <small>Final</small>
                 <input
-                  type="time"
-                  value={form.endTime}
-                  min={form.startTime}
-                  onChange={(event) => updateField('endTime', event.target.value)}
+                  type="date"
+                  value={form.endDate}
+                  min={form.startDate}
+                  onChange={(event) => updateField('endDate', event.target.value)}
                   required
                 />
               </label>
-              </div>
             </div>
-          )}
+          </div>
         </div>
 
         <label className="wide-field">
@@ -2107,7 +2034,7 @@ function RequestTable({ requests, isAdmin, onReview }) {
                   {isAdmin && (
                     <td data-label="Personal">
                       <strong>{request.personName}</strong>
-                      <span>{request.schedule}</span>
+                      <span>{request.schedule} · {request.classHours || 0} horas</span>
                     </td>
                   )}
                   <td data-label="Periodo">
@@ -2218,6 +2145,10 @@ function RequestDetailDrawer({ request, isAdmin, onClose, onReview }) {
           <div>
             <span>Jornada</span>
             <strong>{request.schedule}</strong>
+          </div>
+          <div>
+            <span>Horas clase</span>
+            <strong>{request.classHours || 0}</strong>
           </div>
           <div>
             <span>Motivo</span>

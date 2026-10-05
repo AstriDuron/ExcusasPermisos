@@ -102,7 +102,7 @@ Deno.serve(async (request) => {
 
   const { data: requestRow, error: requestError } = await adminClient
     .from('requests')
-    .select('id, request_code, user_id, type, category, start_date, end_date, start_time, end_time, schedule, reason, profiles:user_id(email, full_name, department)')
+    .select('id, request_code, user_id, type, category, start_date, end_date, schedule, class_hours, reason, profiles:user_id(email, full_name, department)')
     .eq('id', requestId)
     .single();
 
@@ -132,11 +132,9 @@ Deno.serve(async (request) => {
   const typeLabel = requestRow.type === 'permiso' ? 'Permiso' : 'Excusa';
   const personName = requestRow.profiles?.full_name || requestRow.profiles?.email || 'Personal';
   const personEmail = requestRow.profiles?.email || '';
-  const period = requestRow.schedule === 'Por horas'
-    ? `${formatDate(requestRow.start_date)}, ${formatTime(requestRow.start_time)} - ${formatTime(requestRow.end_time)}`
-    : requestRow.start_date === requestRow.end_date
-      ? formatDate(requestRow.start_date)
-      : `${formatDate(requestRow.start_date)} - ${formatDate(requestRow.end_date)}`;
+  const period = requestRow.start_date === requestRow.end_date
+    ? formatDate(requestRow.start_date)
+    : `${formatDate(requestRow.start_date)} - ${formatDate(requestRow.end_date)}`;
 
   const subject = `Nueva solicitud ${requestRow.request_code}: ${typeLabel}`;
   const textContent = [
@@ -149,6 +147,7 @@ Deno.serve(async (request) => {
     `Correo: ${personEmail}`,
     `Periodo: ${period}`,
     `Jornada: ${requestRow.schedule}`,
+    `Horas clase: ${requestRow.class_hours}`,
     '',
     `Motivo: ${requestRow.reason}`,
     '',
@@ -167,6 +166,7 @@ Deno.serve(async (request) => {
         <tr><td style="padding: 6px 0; color: #667085;">Correo</td><td>${escapeHtml(personEmail)}</td></tr>
         <tr><td style="padding: 6px 0; color: #667085;">Periodo</td><td>${escapeHtml(period)}</td></tr>
         <tr><td style="padding: 6px 0; color: #667085;">Jornada</td><td>${escapeHtml(requestRow.schedule)}</td></tr>
+        <tr><td style="padding: 6px 0; color: #667085;">Horas clase</td><td>${escapeHtml(requestRow.class_hours)}</td></tr>
       </table>
       <p><strong>Motivo:</strong><br>${escapeHtml(requestRow.reason)}</p>
       <p><a href="${escapeHtml(appUrl)}" style="display:inline-block;background:#f6a800;color:#111827;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">Abrir bandeja</a></p>
