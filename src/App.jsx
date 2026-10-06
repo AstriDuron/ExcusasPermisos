@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CalendarDays,
@@ -252,6 +252,27 @@ function sanitizeFileName(name) {
 function getRequestCode(type) {
   const prefix = type === 'Permiso' ? 'PER' : 'EXC';
   return `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+function createClientRequestKey() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createEmptyRequestForm() {
+  return {
+    type: 'Excusa',
+    category: 'Médica',
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: new Date().toISOString().slice(0, 10),
+    startTime: '',
+    endTime: '',
+    schedule: 'Matutina',
+    classHours: '',
+    reason: '',
+    attachment: null,
+    clientRequestKey: createClientRequestKey()
+  };
 }
 
 function createHistoryEvent(action, title, actorName, details = {}) {
@@ -617,6 +638,7 @@ function App() {
 
   async function addRequest(payload) {
     setNotice('');
+    setNoticeTone('warning');
 
     if (!payload.attachment?.file) {
       setNotice('Debe adjuntar un comprobante para enviar la solicitud.');
@@ -658,6 +680,7 @@ function App() {
 
     const insertPayload = {
       request_code: getRequestCode(payload.type),
+      client_request_key: payload.clientRequestKey ?? null,
       user_id: session.user.id,
       type: typeToDb[payload.type],
       category: payload.category,
@@ -671,13 +694,40 @@ function App() {
       status: 'pendiente'
     };
 
-    const { data: inserted, error: insertError } = await supabase
+    let insertResult = await supabase
       .from('requests')
       .insert(insertPayload)
       .select('id')
       .single();
+    let { data: inserted, error: insertError } = insertResult;
+
+    if (insertError && /client_request_key/i.test(`${insertError.message ?? ''} ${insertError.details ?? ''}`)) {
+      const { client_request_key, ...fallbackInsertPayload } = insertPayload;
+      insertResult = await supabase
+        .from('requests')
+        .insert(fallbackInsertPayload)
+        .select('id')
+        .single();
+      inserted = insertResult.data;
+      insertError = insertResult.error;
+    }
 
     if (insertError) {
+      if (insertError.code === '23505' && payload.clientRequestKey) {
+        const { data: existingRequest } = await supabase
+          .from('requests')
+          .select('id')
+          .eq('client_request_key', payload.clientRequestKey)
+          .maybeSingle();
+
+        if (existingRequest?.id) {
+          setNoticeTone('success');
+          setNotice('La solicitud ya fue recibida. Se evitó enviarla dos veces.');
+          await loadRemoteData({ preserveNotice: true });
+          setActiveView('mine');
+          return true;
+        }
+      }
       setNotice('No se pudo crear la solicitud. Revisa tu sesión y las políticas RLS.');
       return false;
     }
@@ -1701,21 +1751,11 @@ function DateRangePicker({ startDate, endDate, onChange }) {
 }
 
 function RequestForm({ onSubmit }) {
-  const [form, setForm] = useState({
-    type: 'Excusa',
-    category: 'Médica',
-    startDate: new Date().toISOString().slice(0, 10),
-    endDate: new Date().toISOString().slice(0, 10),
-    startTime: '',
-    endTime: '',
-    schedule: 'Matutina',
-    classHours: '',
-    reason: '',
-    attachment: null
-  });
+  const [form, setForm] = useState(createEmptyRequestForm);
   const [fileError, setFileError] = useState('');
   const [formError, setFormError] = useState('');
-  const [isReadingFile, setIsReadingFile] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
 
   function updateField(field, value) {
     setForm((current) => {
@@ -1746,33 +1786,18 @@ function RequestForm({ onSubmit }) {
       return;
     }
 
-    setIsReadingFile(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      updateField('attachment', {
-        file,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        dataUrl: typeof reader.result === 'string' ? reader.result : ''
-      });
-      setIsReadingFile(false);
-    };
-    reader.onerror = () => {
-      updateField('attachment', {
-        file,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        dataUrl: ''
-      });
-      setIsReadingFile(false);
-    };
-    reader.readAsDataURL(file);
+    updateField('attachment', {
+      file,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      dataUrl: ''
+    });
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (submitLockRef.current) return;
     setFormError('');
 
     if (!form.reason.trim()) return;
@@ -1794,22 +1819,19 @@ function RequestForm({ onSubmit }) {
     }
 
     const formElement = event.currentTarget;
-    const wasSubmitted = await onSubmit(form);
-    if (!wasSubmitted) return;
+    submitLockRef.current = true;
+    setIsSubmitting(true);
 
-    setForm({
-      type: 'Excusa',
-      category: 'Médica',
-      startDate: new Date().toISOString().slice(0, 10),
-      endDate: new Date().toISOString().slice(0, 10),
-      startTime: '',
-      endTime: '',
-      schedule: 'Matutina',
-      classHours: '',
-      reason: '',
-      attachment: null
-    });
-    formElement.reset();
+    try {
+      const wasSubmitted = await onSubmit(form);
+      if (!wasSubmitted) return;
+
+      setForm(createEmptyRequestForm());
+      formElement.reset();
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -1832,6 +1854,7 @@ function RequestForm({ onSubmit }) {
               className={form.type === type ? 'selected' : ''}
               type="button"
               onClick={() => updateField('type', type)}
+              disabled={isSubmitting}
             >
               {type}
             </button>
@@ -1841,7 +1864,7 @@ function RequestForm({ onSubmit }) {
         <div className="form-grid">
           <label>
             <span>Categoría</span>
-            <select value={form.category} onChange={(event) => updateField('category', event.target.value)}>
+            <select value={form.category} onChange={(event) => updateField('category', event.target.value)} disabled={isSubmitting}>
               {categories.map((category) => (
                 <option key={category}>{category}</option>
               ))}
@@ -1849,7 +1872,7 @@ function RequestForm({ onSubmit }) {
           </label>
           <label>
             <span>Jornada</span>
-            <select value={form.schedule} onChange={(event) => updateField('schedule', event.target.value)}>
+            <select value={form.schedule} onChange={(event) => updateField('schedule', event.target.value)} disabled={isSubmitting}>
               {schedules.map((schedule) => (
                 <option key={schedule}>{schedule}</option>
               ))}
@@ -1865,6 +1888,7 @@ function RequestForm({ onSubmit }) {
               value={form.classHours}
               onChange={(event) => updateField('classHours', event.target.value)}
               placeholder="Ej. 2"
+              disabled={isSubmitting}
               required
             />
           </label>
@@ -1885,6 +1909,7 @@ function RequestForm({ onSubmit }) {
                     }));
                     setFormError('');
                   }}
+                  disabled={isSubmitting}
                   required
                 />
               </label>
@@ -1895,6 +1920,7 @@ function RequestForm({ onSubmit }) {
                   value={form.endDate}
                   min={form.startDate}
                   onChange={(event) => updateField('endDate', event.target.value)}
+                  disabled={isSubmitting}
                   required
                 />
               </label>
@@ -1910,6 +1936,7 @@ function RequestForm({ onSubmit }) {
             onChange={(event) => updateField('reason', event.target.value)}
             placeholder="Detalle el motivo de la excusa o permiso..."
             maxLength="1200"
+            disabled={isSubmitting}
             required
           />
         </label>
@@ -1922,15 +1949,15 @@ function RequestForm({ onSubmit }) {
               ? `${formatFileSize(form.attachment.size)} guardado en esta solicitud`
               : 'PDF o imagen. Tamaño máximo 10 MB.'}
           </span>
-          <input type="file" accept="image/*,.pdf,application/pdf" onChange={handleFile} required />
+          <input type="file" accept="image/*,.pdf,application/pdf" onChange={handleFile} disabled={isSubmitting} required />
         </label>
         {fileError && <div className="notice danger">{fileError}</div>}
         {formError && <div className="notice danger">{formError}</div>}
 
         <div className="form-actions">
-          <button className="primary-action" type="submit" disabled={isReadingFile || !form.attachment}>
+          <button className="primary-action" type="submit" disabled={isSubmitting || !form.attachment} aria-busy={isSubmitting}>
             <FileCheck2 size={18} />
-            {isReadingFile ? 'Adjuntando...' : 'Enviar solicitud'}
+            {isSubmitting ? 'Enviando...' : 'Enviar solicitud'}
           </button>
         </div>
       </form>

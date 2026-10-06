@@ -18,6 +18,7 @@ create table if not exists public.profiles (
 create table if not exists public.requests (
   id uuid primary key default gen_random_uuid(),
   request_code text not null unique,
+  client_request_key text,
   user_id uuid not null references public.profiles(id) on delete cascade,
   type text not null check (type in ('excusa', 'permiso')),
   category text not null,
@@ -49,6 +50,10 @@ create table if not exists public.requests (
     )
   )
 );
+
+create unique index if not exists requests_client_request_key_unique
+on public.requests (client_request_key)
+where client_request_key is not null;
 
 create table if not exists public.request_files (
   id uuid primary key default gen_random_uuid(),
